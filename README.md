@@ -1,1 +1,1 @@
-Embeddable javascript chess board empowered by the chess engine analysis
+Javascript chess board library empowered by the chess engine analysis
