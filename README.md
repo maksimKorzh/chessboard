@@ -1,2 +1,1 @@
-# Code Monkey Chess
-Embeddable analysis chess board empowered by the chess engine
+Embeddable javascript chess board empowered by the chess engine analysis
