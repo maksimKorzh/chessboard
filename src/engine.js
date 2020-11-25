@@ -107,6 +107,9 @@ var Engine = function() {
   // castling rights (dec 15 => bin 1111 => both kings can castle to both sides)
   var castle = 15;
   
+  // fifty move counter
+  var fifty = 0;
+  
   // position hash key
   var hash_key = 0;
 
@@ -118,6 +121,61 @@ var Engine = function() {
               METHODS
                  
   \****************************/
+  
+  // get side to move
+  function get_side() {
+    return side;
+  }
+  
+  // set side to move
+  function set_side(color) {
+    side = color;
+  }
+  
+  // get enpassant square
+  function get_enpassant() {
+    return enpassant;
+  }
+  
+  // set enpassant square
+  function set_enpassant(square) {
+    enpassant = square;
+  }
+  
+  // get castling rights
+  function get_castle() {
+    return castle;
+  }
+  
+  // set castling rights
+  function set_castle(rights) {
+    castle = rights;
+  }
+  
+  // get piece from at the given board square
+  function get_piece(square) {
+    return board[square];
+  }
+  
+  // set piece to the given board square
+  function set_piece(piece, square) {
+    board[square] = piece;
+  }
+  
+  // pop piece from the given board square
+  function pop_piece(square) {
+    board[square] = e;
+  }
+  
+  // get fifty move count
+  function get_fifty() {
+    return fifty;
+  }
+  
+  // set fifty move count
+  function set_fifty(count) {
+    fifty = count;
+  }
   
   // print chess board to console
   function print_board() {
@@ -161,15 +219,41 @@ var Engine = function() {
                                         ((castle & qc) ? 'q' : '-');
                                         
     board_string += '\n  Ep:          ' + ((enpassant == no_sq) ? 'no': coordinates[enpassant]);
+    board_string += '\n\n  50 moves: ' + fifty; 
     board_string += '\n  Key: ' + hash_key;
     
     // print board string to console
     console.log(board_string);
   }
   
+  // reset board
+  function reset_board() {
+    // loop over board ranks
+    for (var rank = 0; rank < 8; rank++) {
+      // loop over board files
+      for (var file = 0; file < 16; file++) {
+        // convert file & rank to square
+        var square = rank * 16 + file;
+                
+        // make sure that the square is on board
+        if ((square & 0x88) == 0)
+          // reset each board square
+          board[square] = e;
+      }
+    }
+    
+    // reset board state variables
+    side = -1;
+    enpassant = no_sq;
+    castle = 0;
+    fifty = 0;
+    hash_key = 0;
+    king_square = [0, 0];
+  }
+  
   /****************************\
                  
-           API REFERENCE
+        PUBLIC API REFERENCE
                  
   \****************************/
 
@@ -211,27 +295,36 @@ var Engine = function() {
     
     // square coordinates
     coordinates: coordinates,
+    
+    // unicode pieces
+    unicode_pieces: unicode_pieces,
   
-    // side to move
-    side: side,
+    // side to move interaction
+    get_side: function() { return get_side(); },
+    set_side: function(color) { return set_side(color); },
     
-    // board enpassant saquare
-    enpassant: enpassant,
+    // board enpassant saquare interaction
+    get_enpassant: function() { return get_enpassant(); },
+    set_enpassant: function(square) { return set_enpassant(square); },
     
-    // board castling rights
-    castle: castle,
-    
-    // board hash key (unique position identifier)
-    hask_key: hash_key,
-    
-    // loacation of kings
-    king_square: king_square,
+    // board castling rights interaction
+    get_castle: function() { return get_castle(); },
+    set_castle: function(rights) { return set_castle(rights); },
   
-    // chess board array
-    board: board,
+    // fifty move count interaction
+    get_fifty: function() { return get_fifty(); },
+    set_fifty: function(count) { return set_fifty(count)},
+    
+    // chess board array interaction
+    get_piece: function(square) { return get_piece(square); },
+    set_piece: function(piece, square) { return set_piece(piece, square); },
+    pop_piece: function(square) { return pop_piece(square); },
     
     // print chess board to console
-    print_board: function() { return print_board() }
+    print_board: function() { return print_board(); },
+    
+    // reset board
+    reset_board: function() { return reset_board(); }
   }
 }
 
@@ -240,11 +333,13 @@ var Engine = function() {
 // create engine instance
 var engine = new Engine();
 
-engine.board[engine.squares.E2] = engine.pieces.NO_PIECE;
-engine.board[engine.squares.E4] = engine.pieces.WHITE_PAWN;
+// print board
 engine.print_board();
 
-console.log(engine.coordinates[engine.squares.E2] + engine.coordinates[engine.squares.E4]);
+engine.reset_board();
+engine.set_fifty(35);
+
+engine.print_board();
 
 
 
