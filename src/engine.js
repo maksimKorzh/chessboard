@@ -134,6 +134,69 @@ var Engine = function() {
   
   /****************************\
                  
+      RANDOM NUMBER GENERATOR
+                 
+  \****************************/
+  
+  // pseudo random number state
+  var random_state = 1804289383;
+
+  // generate 32-bit pseudo legal numbers
+  function random()
+  {
+      // get current state
+      var number = random_state;
+      
+      // XOR shift algorithm
+      number ^= number << 13;
+      number ^= number >> 17;
+      number ^= number << 5;
+      
+      // update random number state
+      random_state = number;
+      
+      // return random number
+      return new Uint32Array([number])[0];
+  }
+  
+  /****************************\
+                 
+         HASHING POSITION
+                 
+  \****************************/
+  
+  // random piece keys
+  var piece_keys = new Uint32Array([]);
+  
+  // init random hash keys
+  (function init_random_keys()
+  {console.log('self call!');
+    // loop over piece codes
+    for (var piece = P; piece <= k; piece++)
+    {
+      // loop over board squares
+      for (var square = 0; square < 64; square++)
+        // init random piece keys
+        piece_keys[piece - 1][square] = get_random_U64_number();
+        console.log(random());
+    }
+    /*
+    // loop over board squares
+    for (int square = 0; square < 64; square++)
+      // init random enpassant keys
+      enpassant_keys[square] = get_random_U64_number();
+    
+    // loop over castling keys
+    for (int index = 0; index < 16; index++)
+      // init castling keys
+      castle_keys[index] = get_random_U64_number();
+        
+    // init random side key
+    side_key = get_random_U64_number();*/
+  }())
+  
+  /****************************\
+                 
               METHODS
                  
   \****************************/
@@ -466,7 +529,6 @@ var engine = new Engine();
 
 engine.parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
 engine.print_board();
-
 
 // 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 '
 // 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 '
