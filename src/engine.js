@@ -83,6 +83,22 @@ var Engine = function() {
     '\u265F', '\u265E', '\u265D', '\u265C', '\u265B', '\u265A'
   ];
 
+  // encode ascii pieces
+  var char_pieces = {
+      'P': P,
+      'N': N,
+      'B': B,
+      'R': R,
+      'Q': Q,
+      'K': K,
+      'p': p,
+      'n': n,
+      'b': b,
+      'r': r,
+      'q': q,
+      'k': k,
+  };
+
   // castling rights (bits)
   const KC = 1, QC = 2, kc = 4, qc = 8;
   
@@ -213,7 +229,7 @@ var Engine = function() {
     
     // append board state variables
     board_string += '\n\n  Side:     ' + ((side == 0) ? 'white': 'black');
-    board_string += "\n  Castling:  " + ((castle & KC) ? 'K' : '-') + 
+    board_string += '\n  Castling:  ' + ((castle & KC) ? 'K' : '-') + 
                                         ((castle & QC) ? 'Q' : '-') +
                                         ((castle & kc) ? 'k' : '-') +
                                         ((castle & qc) ? 'q' : '-');
@@ -241,7 +257,7 @@ var Engine = function() {
           board[square] = e;
       }
     }
-    
+  
     // reset board state variables
     side = -1;
     enpassant = no_sq;
@@ -249,6 +265,118 @@ var Engine = function() {
     fifty = 0;
     hash_key = 0;
     king_square = [0, 0];
+  }
+  
+  // parse FEN string to init board position
+  function parse_fen(fen) {
+    // reset chess board and state variables
+    reset_board();
+    
+    // FEN char index
+    var index = 0;
+    
+    // loop over board ranks
+    for (var rank = 0; rank < 8; rank++) {
+      // loop over board files
+      for (var file = 0; file < 16; file++) {
+        // convert file & rank to square
+        var square = rank * 16 + file;
+           
+        // make sure that the square is on board
+        if ((square & 0x88) == 0)
+        {
+          // match pieces
+          if ((fen[index].charCodeAt() >= 'a'.charCodeAt() &&
+               fen[index].charCodeAt() <= 'z'.charCodeAt()) || 
+              (fen[index].charCodeAt() >= 'A'.charCodeAt() &&
+               fen[index].charCodeAt() <= 'Z'.charCodeAt()))
+          {
+              // set up kings' squares
+              if (fen[index] == 'K')
+                  king_square[white] = square;
+              
+              else if (fen[index] == 'k')
+                  king_square[black] = square;
+              
+              // set the piece on board
+              board[square] = char_pieces[fen[index]];
+              
+              // increment FEN pointer
+              index++;
+          }
+          
+          // match empty squares
+          if (fen[index].charCodeAt() >= '0'.charCodeAt() &&
+              fen[index].charCodeAt() <= '9'.charCodeAt())
+          {
+              // calculate offset
+              var offset = fen[index] - '0';
+              
+              // decrement file on empty squares
+              if (!(board[square]))
+                  file--;
+              
+              // skip empty squares
+              file += offset;
+              
+              // increment FEN pointer
+              index++;
+          }
+          
+          // match end of rank
+          if (fen[index] == '/')
+              // increment FEN pointer
+              index++;
+        }
+      }
+    }
+    
+    // go to side parsing
+    index++;
+    
+    // parse side to move
+    side = (fen[index] == 'w') ? white : black;
+    
+    // go to castling rights parsing
+    index += 2;
+    
+    // parse castling rights
+    while (fen[index] != ' ')
+    {
+        switch(fen[index])
+        {
+            case 'K': castle |= KC; break;
+            case 'Q': castle |= QC; break;
+            case 'k': castle |= kc; break;
+            case 'q': castle |= qc; break;
+            case '-': break;
+        }
+        
+        // increment pointer
+        index++;
+    }
+    
+    // got to empassant square
+    index++;
+    
+    // parse empassant square
+    if (fen[index] != '-')
+    {
+        // parse enpassant square's file & rank
+        var file = fen[index].charCodeAt() - 'a'.charCodeAt();
+        var rank = 8 - (fen[index + 1].charCodeAt() - '0'.charCodeAt());
+
+        // set up enpassant square
+        enpassant = rank * 16 + file;
+    }
+    
+    else
+        enpassant = no_sq;
+    
+    // parse 50 move count
+    fifty = Number(fen.slice(index, fen.length - 1).split(' ')[1]);
+
+    // TODO init hash key
   }
   
   /****************************\
@@ -324,7 +452,10 @@ var Engine = function() {
     print_board: function() { return print_board(); },
     
     // reset board
-    reset_board: function() { return reset_board(); }
+    reset_board: function() { return reset_board(); },
+    
+    // parse FEN to init board position
+    parse_fen: function(fen) { return parse_fen(fen); }
   }
 }
 
@@ -333,15 +464,13 @@ var Engine = function() {
 // create engine instance
 var engine = new Engine();
 
-// print board
-engine.print_board();
-
-engine.reset_board();
-engine.set_fifty(35);
-
+engine.parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
 engine.print_board();
 
 
+// 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 '
+// 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 '
+// 'r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 '
 
 
 
