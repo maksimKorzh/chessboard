@@ -5,10 +5,10 @@
  
  ------------------------------------------------
  
-           Javascript chess library providing
-              chess board widget empowered
-              by the chess engine analysis
-          that you can embed into your website
+         Javascript chess library providing
+            chess board widget empowered
+            by the chess engine analysis
+        that you can embed into your website
           
                         by
                         
@@ -18,7 +18,7 @@
 \************************************************/
 
 // encapsulate engine object
-var Engine = function() {
+var Chess = function() {
   
   /****************************\
                  
@@ -131,7 +131,8 @@ var Engine = function() {
 
   // kings' squares
   var king_square = [e1, e8];
-  
+
+
   /****************************\
                  
       RANDOM NUMBER GENERATOR
@@ -158,7 +159,8 @@ var Engine = function() {
       // return random number
       return new Uint32Array([number])[0];
   }
-  
+
+
   /****************************\
                  
            ZOBRIST KEYS
@@ -166,93 +168,74 @@ var Engine = function() {
   \****************************/
   
   // random piece keys (piece * square)
-  var piece_keys = new Uint32Array(14 * 128);
+  var piece_keys = new Array(13 * 128);
+  
+  // random castle keys
+  var castle_keys = new Array(16);
+  
+  // random side key
+  var side_key;
   
   // init random hash keys
-  (function init_random_keys()
+  function init_random_keys()
   {
     // loop over piece codes
-    for (var index = 0; index < 14 * 128; index++)
-    {
-     
+    for (var index = 0; index < 13 * 128; index++)
         // init random piece keys
         piece_keys[index] = random();
-    }
 
-    // loop over board squares
-    for (int square = 0; square < 128; square++)
-      // init random enpassant keys
-      enpassant_keys[square] = random();
-    
     // loop over castling keys
-    for (int index = 0; index < 16; index++)
+    for (var index = 0; index < 16; index++)
       // init castling keys
-      castle_keys[index] = get_random_U64_number();
+      castle_keys[index] = random();
         
     // init random side key
-    side_key = get_random_U64_number();*/
-  }())
+    side_key = random();
+
+  }
   
+  // generate hash key (unique position ID) from scratch
+  function generate_hash_key() {
+    // define final hash key
+    var final_key = 0;
+    
+    // loop over board squares
+	  for(var square = 0; square < 128; square++) {
+		  // make sure square is on board
+		  if ((square & 0x88) == 0)
+		  {
+		    // init piece
+		    var piece = board[square];
+
+		    if (piece != e)		
+			    final_key ^= piece_keys[(piece * 128) + square];
+		  }		
+	  }
+
+    // if white to move
+	  if (side == white)
+		  // hash side 
+		  final_key ^= side_key;
+	  
+	  // if enpassant is available
+	  if (enpassant != no_sq)
+	    // hash enpassant square
+		  finalKey ^= piece_keys[enpassant];
+	  
+	  // hash castling rights
+	  final_key ^= castle_keys[castle];
+	  
+	  // return final hash key (unique position ID)
+	  return new Uint32Array([final_key])[0];
+
+  }
+
+
   /****************************\
                  
-              METHODS
+           BOARD METHODS
                  
   \****************************/
-  
-  // get side to move
-  function get_side() {
-    return side;
-  }
-  
-  // set side to move
-  function set_side(color) {
-    side = color;
-  }
-  
-  // get enpassant square
-  function get_enpassant() {
-    return enpassant;
-  }
-  
-  // set enpassant square
-  function set_enpassant(square) {
-    enpassant = square;
-  }
-  
-  // get castling rights
-  function get_castle() {
-    return castle;
-  }
-  
-  // set castling rights
-  function set_castle(rights) {
-    castle = rights;
-  }
-  
-  // get piece from at the given board square
-  function get_piece(square) {
-    return board[square];
-  }
-  
-  // set piece to the given board square
-  function set_piece(piece, square) {
-    board[square] = piece;
-  }
-  
-  // pop piece from the given board square
-  function pop_piece(square) {
-    board[square] = e;
-  }
-  
-  // get fifty move count
-  function get_fifty() {
-    return fifty;
-  }
-  
-  // set fifty move count
-  function set_fifty(count) {
-    fifty = count;
-  }
   
   // print chess board to console
   function print_board() {
@@ -296,7 +279,7 @@ var Engine = function() {
                                         ((castle & qc) ? 'q' : '-');
                                         
     board_string += '\n  Ep:          ' + ((enpassant == no_sq) ? 'no': coordinates[enpassant]);
-    board_string += '\n\n  50 moves: ' + fifty; 
+    board_string += '\n\n  50 moves:    ' + fifty; 
     board_string += '\n  Key: ' + hash_key;
     
     // print board string to console
@@ -437,8 +420,26 @@ var Engine = function() {
     // parse 50 move count
     fifty = Number(fen.slice(index, fen.length - 1).split(' ')[1]);
 
-    // TODO init hash key
+    // init hash key
+    hash_key = generate_hash_key();
   }
+
+
+  /****************************\
+                 
+           INITIALIZATION
+                 
+  \****************************/
+  
+  // init all when Chess() object is created
+  (function init_all() {
+    // init random keys
+    init_random_keys();
+    
+    // init hash key for starting position
+    hash_key = generate_hash_key();
+    
+  }())
   
   /****************************\
                  
@@ -447,92 +448,46 @@ var Engine = function() {
   \****************************/
 
   return {
-    // side to move color
-    color: {
-      WHITE: white,
-      BLACK: black
-    },
-    
-    // piece codes
-    pieces: {
-      NO_PIECE: e,
-      WHITE_PAWN: P,
-      WHITE_KNIGHT: N,
-      WHITE_BISHOP: B,
-      WHITE_ROOK: R,
-      WHITE_QUEEN: Q,
-      WHITE_KING: K,
-      BLACK_PAWN: p,
-      BLACK_KNIGHT: n,
-      BLACK_BISHOP: b,
-      BLACK_ROOK: r,
-      BLACK_QUEEN: q,
-      BLACK_KING: k
-    },
-    
-    // square indices
-    squares: {
-      A8: a8, B8: b8, C8: c8, D8: d8, E8: e8, F8: f8, G8: g8, H8: h8, 
-      A7: a7, B7: b7, C7: c7, D7: d7, E7: e7, F7: f7, G7: g7, H7: h7, 
-      A6: a6, B6: b6, C6: c6, D6: d6, E6: e6, F6: f6, G6: g6, H6: h6, 
-      A5: a5, B5: b5, C5: c5, D5: d5, E5: e5, F5: f5, G5: g5, H5: h5, 
-      A4: a4, B4: b4, C4: c4, D4: d4, E4: e4, F4: f4, G4: g4, H4: h4, 
-      A3: a3, B3: b3, C3: c3, D3: d3, E3: e3, F3: f3, G3: g3, H3: h3, 
-      A2: a2, B2: b2, C2: c2, D2: d2, E2: e2, F2: f2, G2: g2, H2: h2, 
-      A1: a1, B1: b1, C1: c1, D1: d1, E1: e1, F1: f1, G1: g1, H1: h1
-    },
-    
-    // square coordinates
-    coordinates: coordinates,
-    
-    // unicode pieces
-    unicode_pieces: unicode_pieces,
-  
-    // side to move interaction
-    get_side: function() { return get_side(); },
-    set_side: function(color) { return set_side(color); },
-    
-    // board enpassant saquare interaction
-    get_enpassant: function() { return get_enpassant(); },
-    set_enpassant: function(square) { return set_enpassant(square); },
-    
-    // board castling rights interaction
-    get_castle: function() { return get_castle(); },
-    set_castle: function(rights) { return set_castle(rights); },
-  
-    // fifty move count interaction
-    get_fifty: function() { return get_fifty(); },
-    set_fifty: function(count) { return set_fifty(count)},
-    
-    // chess board array interaction
-    get_piece: function(square) { return get_piece(square); },
-    set_piece: function(piece, square) { return set_piece(piece, square); },
-    pop_piece: function(square) { return pop_piece(square); },
-    
     // print chess board to console
     print_board: function() { return print_board(); },
     
-    // reset board
-    reset_board: function() { return reset_board(); },
-    
     // parse FEN to init board position
-    parse_fen: function(fen) { return parse_fen(fen); }
+    parse_fen: function(fen) { return parse_fen(fen); },
+    
+    // search
+    //search: function() { return new Promise(function() {search(); }); }
   }
 }
 
 /* TEST DRIVER */
 
 // create engine instance
-var engine = new Engine();
+var chess = new Chess();
 
-engine.parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
-engine.print_board();
+chess.parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+chess.print_board();
+
 
 // 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 '
 // 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 '
 // 'r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 '
 
+/*
+I just want to search on a board separate from the board associated with GUI.
+Well, probably instantiating a board should do a trick.
+What if I simply create several instances, say:
 
+// GUI
+var board = new Chess();
+
+// engine
+var engine = new Chess();
+
+engine.search(board.position)
+
+
+
+*/
 
 
 
