@@ -161,30 +161,28 @@ var Engine = function() {
   
   /****************************\
                  
-         HASHING POSITION
+           ZOBRIST KEYS
                  
   \****************************/
   
-  // random piece keys
-  var piece_keys = new Uint32Array([]);
+  // random piece keys (piece * square)
+  var piece_keys = new Uint32Array(14 * 128);
   
   // init random hash keys
   (function init_random_keys()
-  {console.log('self call!');
+  {
     // loop over piece codes
-    for (var piece = P; piece <= k; piece++)
+    for (var index = 0; index < 14 * 128; index++)
     {
-      // loop over board squares
-      for (var square = 0; square < 64; square++)
+     
         // init random piece keys
-        piece_keys[piece - 1][square] = get_random_U64_number();
-        console.log(random());
+        piece_keys[index] = random();
     }
-    /*
+
     // loop over board squares
-    for (int square = 0; square < 64; square++)
+    for (int square = 0; square < 128; square++)
       // init random enpassant keys
-      enpassant_keys[square] = get_random_U64_number();
+      enpassant_keys[square] = random();
     
     // loop over castling keys
     for (int index = 0; index < 16; index++)
