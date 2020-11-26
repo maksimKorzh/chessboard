@@ -1,2 +1,2 @@
-# Code Monkey Chess
+# Javascript chess
 Javascript chess library
