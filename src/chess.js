@@ -111,8 +111,21 @@ var Chess = function() {
     [n]: 'n'
   };
 
-  // castling rights (bits)
+  // castling bits
   const KC = 1, QC = 2, kc = 4, qc = 8;
+  
+  
+  // castling rights
+  var castling_rights = [
+     7, 15, 15, 15,  3, 15, 15, 11,  o, o, o, o, o, o, o, o,
+    15, 15, 15, 15, 15, 15, 15, 15,  o, o, o, o, o, o, o, o,
+    15, 15, 15, 15, 15, 15, 15, 15,  o, o, o, o, o, o, o, o,
+    15, 15, 15, 15, 15, 15, 15, 15,  o, o, o, o, o, o, o, o,
+    15, 15, 15, 15, 15, 15, 15, 15,  o, o, o, o, o, o, o, o,
+    15, 15, 15, 15, 15, 15, 15, 15,  o, o, o, o, o, o, o, o,
+    15, 15, 15, 15, 15, 15, 15, 15,  o, o, o, o, o, o, o, o,
+    13, 15, 15, 15, 12, 15, 15, 14,  o, o, o, o, o, o, o, o
+  ];
   
   // piece move offsets
   var knight_offsets = [33, 31, 18, 14, -33, -31, -18, -14];
@@ -441,15 +454,9 @@ var Chess = function() {
           MOVE GENERATOR
                  
   \****************************/
-  
-  // move list
-  var move_list = {
-    moves: [],
-    count: 0
-  };
-  
+	  
   // print move list
-  function print_move_list() {
+  function print_move_list(move_list) {
     // print table header
     var list_moves = 'Move     Capture  Double   Enpass   Castling\n\n';
 
@@ -515,8 +522,7 @@ var Chess = function() {
 
   // decode move's castling flag
   function get_move_castling(move) { return (move >> 21) & 0x1 }
-  
-  
+
   // is square attacked
   function is_square_attacked(square, side) {
     // pawn attacks
@@ -654,7 +660,7 @@ var Chess = function() {
   }
   
   // populate move list
-  function add_move(move) {
+  function add_move(move_list, move) {
     // push move into the move list
     move_list.moves[move_list.count] = move;
     
@@ -663,10 +669,7 @@ var Chess = function() {
   }
 
   // move generator
-  function generate_moves() {
-    // reset move count
-    move_list.count = 0;
-
+  function generate_moves(move_list) {
     // loop over all board squares
     for (var square = 0; square < 128; square++) {
       // check if the square is on board
@@ -682,19 +685,19 @@ var Chess = function() {
             if (!(to_square & 0x88) && !board[to_square]) {   
               // pawn promotions
               if (square >= a7 && square <= h7) {
-                add_move(encode_move(square, to_square, Q, 0, 0, 0, 0));
-                add_move(encode_move(square, to_square, R, 0, 0, 0, 0));
-                add_move(encode_move(square, to_square, B, 0, 0, 0, 0));
-                add_move(encode_move(square, to_square, N, 0, 0, 0, 0));                            
+                add_move(move_list, encode_move(square, to_square, Q, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, R, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, B, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, N, 0, 0, 0, 0));                            
               }
               
               else {
                 // one square ahead pawn move
-                add_move(encode_move(square, to_square, 0, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
                 
                 // two squares ahead pawn move
                 if ((square >= a2 && square <= h2) && !board[square - 32])
-                  add_move(encode_move(square, square - 32, 0, 0, 1, 0, 0));
+                  add_move(move_list, encode_move(square, square - 32, 0, 0, 1, 0, 0));
               }
             }
                   
@@ -715,20 +718,20 @@ var Chess = function() {
                        (square >= a7 && square <= h7) &&
                        (board[to_square] >= 7 && board[to_square] <= 12)
                      ) {
-                    add_move(encode_move(square, to_square, Q, 1, 0, 0, 0));
-                    add_move(encode_move(square, to_square, R, 1, 0, 0, 0));
-                    add_move(encode_move(square, to_square, B, 1, 0, 0, 0));
-                    add_move(encode_move(square, to_square, N, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, Q, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, R, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, B, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, N, 1, 0, 0, 0));
                   }
                   
                   else {
                     // casual capture
                     if (board[to_square] >= 7 && board[to_square] <= 12)
-                      add_move(encode_move(square, to_square, 0, 1, 0, 0, 0));
+                      add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
                     
                     // enpassant capture
                     if (to_square == enpassant)
-                      add_move(encode_move(square, to_square, 0, 1, 0, 1, 0));
+                      add_move(move_list, encode_move(square, to_square, 0, 1, 0, 1, 0));
                   }
                 }
               }
@@ -743,7 +746,7 @@ var Chess = function() {
               if (!board[f1] && !board[g1]) {
                 // make sure king & next square are not under attack
                 if (!is_square_attacked(e1, black) && !is_square_attacked(f1, black))
-                  add_move(encode_move(e1, g1, 0, 0, 0, 0, 1));
+                  add_move(move_list, encode_move(e1, g1, 0, 0, 0, 0, 1));
               }
             }
               
@@ -753,7 +756,7 @@ var Chess = function() {
               if (!board[d1] && !board[b1] && !board[c1]) {
                 // make sure king & next square are not under attack
                 if (!is_square_attacked(e1, black) && !is_square_attacked(d1, black))
-                  add_move(encode_move(e1, c1, 0, 0, 0, 0, 1));
+                  add_move(move_list, encode_move(e1, c1, 0, 0, 0, 0, 1));
               }
             }
           }
@@ -771,19 +774,19 @@ var Chess = function() {
             if (!(to_square & 0x88) && !board[to_square]) {   
               // pawn promotions
               if (square >= a2 && square <= h2) {
-                add_move(encode_move(square, to_square, q, 0, 0, 0, 0));
-                add_move(encode_move(square, to_square, r, 0, 0, 0, 0));
-                add_move(encode_move(square, to_square, b, 0, 0, 0, 0));
-                add_move(encode_move(square, to_square, n, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, q, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, r, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, b, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, n, 0, 0, 0, 0));
               }
               
               else {
                 // one square ahead pawn move
-                add_move(encode_move(square, to_square, 0, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
                 
                 // two squares ahead pawn move
                 if ((square >= a7 && square <= h7) && !board[square + 32])
-                  add_move(encode_move(square, square + 32, 0, 0, 1, 0, 0));
+                  add_move(move_list, encode_move(square, square + 32, 0, 0, 1, 0, 0));
               }
             }
               
@@ -806,20 +809,20 @@ var Chess = function() {
                        (square >= a2 && square <= h2) &&
                        (board[to_square] >= 1 && board[to_square] <= 6)
                      ) {
-                    add_move(encode_move(square, to_square, q, 1, 0, 0, 0));
-                    add_move(encode_move(square, to_square, r, 1, 0, 0, 0));
-                    add_move(encode_move(square, to_square, b, 1, 0, 0, 0));
-                    add_move(encode_move(square, to_square, n, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, q, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, r, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, b, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, n, 1, 0, 0, 0));
                   }
                   
                   else {
                     // casual capture
                     if (board[to_square] >= 1 && board[to_square] <= 6)
-                      add_move(encode_move(square, to_square, 0, 1, 0, 0, 0));
+                      add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
                     
                     // enpassant capture
                     if (to_square == enpassant)
-                      add_move(encode_move(square, to_square, 0, 1, 0, 1, 0));
+                      add_move(move_list, encode_move(square, to_square, 0, 1, 0, 1, 0));
                   }
                 }
               }
@@ -834,7 +837,7 @@ var Chess = function() {
               if (!board[f8] && !board[g8]) {
                 // make sure king & next square are not under attack
                 if (!is_square_attacked(e8, white) && !is_square_attacked(f8, white))
-                  add_move(encode_move(e8, g8, 0, 0, 0, 0, 1));
+                  add_move(move_list, encode_move(e8, g8, 0, 0, 0, 0, 1));
               }
             }
             
@@ -845,7 +848,7 @@ var Chess = function() {
               {
                 // make sure king & next square are not under attack
                 if (!is_square_attacked(e8, white) && !is_square_attacked(d8, white))
-                  add_move(encode_move(e8, c8, 0, 0, 0, 0, 1));
+                  add_move(move_list, encode_move(e8, c8, 0, 0, 0, 0, 1));
               }
             }
           }
@@ -870,11 +873,11 @@ var Chess = function() {
                  ) {
                 // on capture
                 if (piece)
-                  add_move(encode_move(square, to_square, 0, 1, 0, 0, 0));
+                  add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
                     
                 // on empty square
                 else
-                  add_move(encode_move(square, to_square, 0, 0, 0, 0, 0));
+                  add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
               }
             }
           }
@@ -899,11 +902,11 @@ var Chess = function() {
                  ) {
                   // on capture
                   if (piece)
-                    add_move(encode_move(square, to_square, 0, 1, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
                       
                   // on empty square
                   else
-                    add_move(encode_move(square, to_square, 0, 0, 0, 0, 0));
+                    add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
               }
             }
           }
@@ -931,13 +934,13 @@ var Chess = function() {
               
               // if hits opponent's piece
               if (!side ? (piece >= 7 && piece <= 12) : ((piece >= 1 && piece <= 6))) {
-                add_move(encode_move(square, to_square, 0, 1, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
                 break;
               }
               
               // if steps into an empty squre
               if (!piece)
-                add_move(encode_move(square, to_square, 0, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
               
               // increment target square
               to_square += bishop_offsets[index];
@@ -967,13 +970,13 @@ var Chess = function() {
               
               // if hits opponent's piece
               if (!side ? (piece >= 7 && piece <= 12) : ((piece >= 1 && piece <= 6))) {
-                  add_move(encode_move(square, to_square, 0, 1, 0, 0, 0));
+                  add_move(move_list, encode_move(square, to_square, 0, 1, 0, 0, 0));
                 break;
               }
               
               // if steps into an empty squre
               if (!piece)
-                add_move(encode_move(square, to_square, 0, 0, 0, 0, 0));
+                add_move(move_list, encode_move(square, to_square, 0, 0, 0, 0, 0));
               
               // increment target square
               to_square += rook_offsets[index];
@@ -984,9 +987,12 @@ var Chess = function() {
     }
   }
 
+  // move flag constants
+  const all_moves = 0;
+  const only_captures = 1;
+
   // make move
-  function make_move(move, capture_flag)
-  {
+  function make_move(move, capture_flag) {
     // quiet move
     if (capture_flag == all_moves) {
       // backup current board position
@@ -1075,7 +1081,7 @@ var Chess = function() {
         castle = castle_copy;
         hash_key = hash_copy;
         king_square = JSON.parse(JSON.stringify(king_square_copy));
-        
+
         // illegal move
         return 0;
       }
@@ -1086,8 +1092,7 @@ var Chess = function() {
     }
     
     // capture move
-    else
-    {
+    else {
       // if move is a capture
       if (get_move_capture(move))
         // make capture move
@@ -1098,6 +1103,147 @@ var Chess = function() {
         return 0;
     }
   }
+
+  /****************************\
+                 
+               PERFT
+                 
+  \****************************/
+  
+  // visited nodes count
+  var nodes = 0;
+  
+  // perft driver
+  function perft_driver(depth)
+  {
+    // escape condition
+    if  (!depth) {
+      // count current position
+      nodes++;
+      return;
+    }
+    
+    // reset move list
+    var move_list = {
+      moves: [],
+      count: 0
+    };
+    
+    // create move list
+    var move_list = {
+      moves: new Array(256),
+      count: 0
+    }
+    
+    // generate moves
+    generate_moves(move_list);
+    
+    // loop over the generated moves
+    for (var move_count = 0; move_count < move_list.count; move_count++) {
+      // backup current board position
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, hash_copy;
+      board_copy = JSON.parse(JSON.stringify(board));
+      side_copy = side;
+      enpassant_copy = enpassant;
+      castle_copy = castle;
+      hash_copy = hash_key;
+      king_square_copy = JSON.parse(JSON.stringify(king_square));
+      
+      // make only legal moves
+      if (!make_move(move_list.moves[move_count], all_moves))
+        // skip illegal move
+        continue;
+      
+      if (side && board[get_move_target(move_list.moves[move_count])] >= 7)
+      {      console.log('wrong side moved piece!');
+        console.log(depth)
+        console.log(move_count)
+      }
+      
+      // recursive call
+      perft_driver(depth - 1);
+      
+      // restore board position
+      board = JSON.parse(JSON.stringify(board_copy));
+      side = side_copy;
+      enpassant = enpassant_copy;
+      castle = castle_copy;
+      hash_key = hash_copy;
+      king_square = JSON.parse(JSON.stringify(king_square_copy));
+    }
+  }
+
+  // perft test
+  function perft_test(depth)
+  {
+    console.log('Performance test:\n\n');
+    result_string = '';
+    
+    // init start time
+    var start_time = new Date().getTime();
+
+    // create move list
+    var move_list = {
+      moves: new Array(256),
+      count: 0
+    }
+    
+    // generate moves
+    generate_moves(move_list);
+    
+    // loop over the generated moves
+    for (var move_count = 0; move_count < move_list.count; move_count++)
+    {
+      // backup current board position
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, hash_copy;
+      board_copy = JSON.parse(JSON.stringify(board));
+      side_copy = side;
+      enpassant_copy = enpassant;
+      castle_copy = castle;
+      hash_copy = hash_key;
+      king_square_copy = JSON.parse(JSON.stringify(king_square));
+        
+      // make only legal moves
+      if (!make_move(move_list.moves[move_count], all_moves))
+        // skip illegal move
+        continue;
+      
+      // cummulative nodes
+      var cum_nodes = nodes;
+      
+      // recursive call
+      perft_driver(depth - 1);
+      
+      // old nodes
+      var old_nodes = nodes - cum_nodes;
+
+      // restore board position
+      board = JSON.parse(JSON.stringify(board_copy));
+      side = side_copy;
+      enpassant = enpassant_copy;
+      castle = castle_copy;
+      hash_key = hash_copy;
+      king_square = JSON.parse(JSON.stringify(king_square_copy));
+      
+      // print current move
+      console.log(  'move' +
+                        ' ' + (move_count + 1) + ((move_count < 9) ? ':  ': ': ') +
+                        coordinates[get_move_source(move_list.moves[move_count])] +
+                        coordinates[get_move_target(move_list.moves[move_count])] +
+                        (get_move_piece(move_list.moves[move_count]) ?
+                        promoted_pieces[get_move_piece(move_list.moves[move_count])]: ' ') +
+                        '    nodes: ' + old_nodes + '\n');
+    }
+    
+    // append results
+    result_string += '\nDepth: ' + depth;
+    result_string += '\nNodes: ' + nodes;
+    result_string += '\n Time: ' + (new Date().getTime() - start_time) + ' ms';
+    
+    // print results
+    console.log(result_string);
+  }
+
 
   /****************************\
                  
@@ -1118,16 +1264,15 @@ var Chess = function() {
 
   /****************************\
                  
-            DEBUGGING
+             RUN TESTS
                  
   \****************************/
   
-  function debug() {
+  function tests() {
     parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+    //parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
     print_board();
-    
-    generate_moves();
-    console.log(move_list);
+    perft_test(4);
     
     
   }
@@ -1149,13 +1294,13 @@ var Chess = function() {
     print_attacked_squares: function(side) { return print_attacked_squares(side); },
     
     // generate pseudo legal moves
-    generate_moves: function() { return generate_moves(); },
+    generate_moves: function(move_list) { return generate_moves(move_list); },
     
     // print move list
-    print_move_list: function() { return print_move_list(); },
+    print_move_list: function(move_list) { return print_move_list(move_list); },
     
     // debug
-    debug: function() { return debug(); }
+    tests: function() { return tests(); }
     
     // search
     //search: function() { return new Promise(function() {search(); }); }
@@ -1166,7 +1311,7 @@ var Chess = function() {
 
 // create engine instance
 var chess = new Chess();
-chess.debug();
+chess.tests();
 
 
 // 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 '
