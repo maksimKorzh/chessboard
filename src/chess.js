@@ -237,7 +237,7 @@ var Chess = function() {
 	  // if enpassant is available
 	  if (enpassant != no_sq)
 	    // hash enpassant square
-		  finalKey ^= piece_keys[enpassant];
+		  final_key ^= piece_keys[enpassant];
 	  
 	  // hash castling rights
 	  final_key ^= castle_keys[castle];
@@ -984,6 +984,120 @@ var Chess = function() {
     }
   }
 
+  // make move
+  function make_move(move, capture_flag)
+  {
+    // quiet move
+    if (capture_flag == all_moves) {
+      // backup current board position
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, hash_copy;
+      board_copy = JSON.parse(JSON.stringify(board));
+      side_copy = side;
+      enpassant_copy = enpassant;
+      castle_copy = castle;
+      hash_copy = hash_key;
+      king_square_copy = JSON.parse(JSON.stringify(king_square));
+      
+      // parse move
+      var from_square = get_move_source(move);
+      var to_square = get_move_target(move);
+      var promoted_piece = get_move_piece(move);
+      var enpass = get_move_enpassant(move);
+      var double_push = get_move_pawn(move);
+      var castling = get_move_castling(move);
+      
+      // move piece
+      board[to_square] = board[from_square];
+      board[from_square] = e;
+      
+      // pawn promotion
+      if (promoted_piece)
+        board[to_square] = promoted_piece;
+      
+      // enpassant capture
+      if (enpass)
+        !side ? (board[to_square + 16] = e) : (board[to_square - 16] = e);
+      
+      // reset enpassant square
+      enpassant = no_sq;
+      
+      // double pawn push
+      if (double_push)
+        !side ? (enpassant = to_square + 16) : (enpassant = to_square - 16);
+      
+      // castling
+      if (castling) {
+        // switch target square
+        switch(to_square) {
+          // white castles king side
+          case g1:
+            board[f1] = board[h1];
+            board[h1] = e;
+            break;
+          
+          // white castles queen side
+          case c1:
+            board[d1] = board[a1];
+            board[a1] = e;
+            break;
+         
+         // black castles king side
+          case g8:
+            board[f8] = board[h8];
+            board[h8] = e;
+            break;
+         
+         // black castles queen side
+          case c8:
+            board[d8] = board[a8];
+            board[a8] = e;
+            break;
+        }
+      }
+      
+      // update king square
+      if (board[to_square] == K || board[to_square] == k)
+        king_square[side] = to_square;
+      
+      // update castling rights
+      castle &= castling_rights[from_square];
+      castle &= castling_rights[to_square];
+      
+      // change side
+      side ^= 1;
+      
+      // take move back if king is under the check
+      if (is_square_attacked(!side ? king_square[side ^ 1] : king_square[side ^ 1], side)) {
+        // restore board position
+        board = JSON.parse(JSON.stringify(board_copy));
+        side = side_copy;
+        enpassant = enpassant_copy;
+        castle = castle_copy;
+        hash_key = hash_copy;
+        king_square = JSON.parse(JSON.stringify(king_square_copy));
+        
+        // illegal move
+        return 0;
+      }
+      
+      else
+        // legal move
+        return 1;
+    }
+    
+    // capture move
+    else
+    {
+      // if move is a capture
+      if (get_move_capture(move))
+        // make capture move
+        make_move(move, all_moves);
+      
+      else
+        // move is not a capture
+        return 0;
+    }
+  }
 
   /****************************\
                  
@@ -1000,6 +1114,23 @@ var Chess = function() {
     hash_key = generate_hash_key();
     
   }())
+
+
+  /****************************\
+                 
+            DEBUGGING
+                 
+  \****************************/
+  
+  function debug() {
+    parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+    print_board();
+    
+    generate_moves();
+    console.log(move_list);
+    
+    
+  }
   
   /****************************\
                  
@@ -1021,7 +1152,10 @@ var Chess = function() {
     generate_moves: function() { return generate_moves(); },
     
     // print move list
-    print_move_list: function() { return print_move_list(); }
+    print_move_list: function() { return print_move_list(); },
+    
+    // debug
+    debug: function() { return debug(); }
     
     // search
     //search: function() { return new Promise(function() {search(); }); }
@@ -1032,11 +1166,8 @@ var Chess = function() {
 
 // create engine instance
 var chess = new Chess();
+chess.debug();
 
-chess.parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
-chess.print_board();
-chess.generate_moves();
-chess.print_move_list();
 
 // 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 '
 // 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 '
