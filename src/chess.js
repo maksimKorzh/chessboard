@@ -187,7 +187,7 @@ var Chess = function() {
     random_state = number;
     
     // return random number
-    return new Uint32Array([number])[0];
+    return number;
   }
 
 
@@ -256,7 +256,7 @@ var Chess = function() {
 	  final_key ^= castle_keys[castle];
 	  
 	  // return final hash key (unique position ID)
-	  return new Uint32Array([final_key])[0];
+	  return final_key;
   }
 
 
@@ -996,12 +996,13 @@ var Chess = function() {
     // quiet move
     if (capture_flag == all_moves) {
       // backup current board position
-      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, hash_copy;
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, fifty_copy, hash_copy;
       board_copy = JSON.parse(JSON.stringify(board));
       side_copy = side;
       enpassant_copy = enpassant;
       castle_copy = castle;
       hash_copy = hash_key;
+      fifty_copy = fifty;
       king_square_copy = JSON.parse(JSON.stringify(king_square));
       
       // parse move
@@ -1011,25 +1012,101 @@ var Chess = function() {
       var enpass = get_move_enpassant(move);
       var double_push = get_move_pawn(move);
       var castling = get_move_castling(move);
+      var piece = board[from_square];
+      var captured_piece = board[to_square];
       
       // move piece
       board[to_square] = board[from_square];
       board[from_square] = e;
       
+      // hash piece
+      hash_key ^= piece_keys[piece * 128 + from_square]; // remove piece from source square in hash key
+      hash_key ^= piece_keys[piece * 128 + to_square];   // set piece to the target square in hash key
+      
+      // increment fifty move rule counter
+      fifty++;
+      
+      // if pawn moved
+      if (board[from_square] == P || board[from_square] == p)
+        // reset fifty move rule counter
+        fifty = 0;
+      
+      // if move is a capture
+      if (get_move_capture(move)) {
+        // remove the piece from hash key
+        if (captured_piece)
+          hash_key ^= piece_keys[captured_piece * 128 + to_square];
+        
+        // reset fifty move rule counter
+        fifty = 0;
+      }
+      
       // pawn promotion
-      if (promoted_piece)
+      if (promoted_piece) {
+        // white to move
+        if (side == white)
+          // remove pawn from hash key
+          hash_key ^= piece_keys[P * 128 + to_square];
+
+        // black to move
+        else 
+          // remove pawn from hash key
+          hash_key ^= piece_keys[p * 128 + to_square];
+        
+        // promote pawn
         board[to_square] = promoted_piece;
+        
+        // add promoted piece into the hash key
+        hash_key ^= piece_keys[promoted_piece * 128 + to_square];
+      }
       
       // enpassant capture
-      if (enpass)
-        !side ? (board[to_square + 16] = e) : (board[to_square - 16] = e);
+      if (enpass) {
+        // white to move
+        if (side == white) {
+          // remove captured pawn
+          board[to_square + 16] = e;
+          
+          // remove pawn from hash key
+          hash_key ^= piece_keys[p * 128 + to_square + 16];
+        }
+        
+        // black to move
+        else {
+          // remove captured pawn
+          board[to_square - 16] = e;
+
+          // remove pawn from hash key
+          hash_key ^= piece_keys[(P * 128) + (to_square - 16)];
+        }
+      }
       
+      // hash enpassant if available
+      if (enpassant != no_sq) hash_key ^= piece_keys[enpassant];
+        
       // reset enpassant square
       enpassant = no_sq;
       
       // double pawn push
-      if (double_push)
-        !side ? (enpassant = to_square + 16) : (enpassant = to_square - 16);
+      if (double_push) {
+        // white to move
+        if (side == white) {
+          // set enpassant square
+          enpassant = to_square + 16;
+          
+          // hash enpassant
+          hash_key ^= piece_keys[to_square + 16];
+        }
+        
+        // black to move
+        else {
+          // set enpassant square
+          enpassant = to_square - 16;
+          
+          // hash enpassant
+          hash_key ^= piece_keys[to_square - 16];
+        }
+      }
       
       // castling
       if (castling) {
@@ -1037,26 +1114,46 @@ var Chess = function() {
         switch(to_square) {
           // white castles king side
           case g1:
+            // move H rook
             board[f1] = board[h1];
             board[h1] = e;
+            
+            // hash rook
+            hash_key ^= piece_keys[R * 128 + h1];  // remove rook from h1 from hash key
+            hash_key ^= piece_keys[R * 128 + f1];  // put rook on f1 into a hash key
             break;
           
           // white castles queen side
           case c1:
+            // move A rook
             board[d1] = board[a1];
             board[a1] = e;
+            
+            // hash rook
+            hash_key ^= piece_keys[R * 128 + a1];  // remove rook from a1 from hash key
+            hash_key ^= piece_keys[R * 128 + d1];  // put rook on d1 into a hash key
             break;
          
          // black castles king side
           case g8:
+            // move H rook
             board[f8] = board[h8];
             board[h8] = e;
+            
+            // hash rook
+            hash_key ^= piece_keys[r * 128 + h8];  // remove rook from h8 from hash key
+            hash_key ^= piece_keys[r * 128 + f8];  // put rook on f8 into a hash key
             break;
          
          // black castles queen side
           case c8:
+            // move A rook
             board[d8] = board[a8];
             board[a8] = e;
+            
+            // hash rook
+            hash_key ^= piece_keys[r * 128 + a8];  // remove rook from a8 from hash key
+            hash_key ^= piece_keys[r * 128 + d8];  // put rook on d8 into a hash key
             break;
         }
       }
@@ -1065,12 +1162,21 @@ var Chess = function() {
       if (board[to_square] == K || board[to_square] == k)
         king_square[side] = to_square;
       
+      // hash castling
+      hash_key ^= castle_keys[castle];
+        
       // update castling rights
       castle &= castling_rights[from_square];
       castle &= castling_rights[to_square];
       
+      // hash castling
+      hash_key ^= castle_keys[castle];
+        
       // change side
       side ^= 1;
+      
+      // hash side
+      hash_key ^= side_key;
       
       // take move back if king is under the check
       if (is_square_attacked(!side ? king_square[side ^ 1] : king_square[side ^ 1], side)) {
@@ -1080,6 +1186,7 @@ var Chess = function() {
         enpassant = enpassant_copy;
         castle = castle_copy;
         hash_key = hash_copy;
+        fifty = fifty_copy;
         king_square = JSON.parse(JSON.stringify(king_square_copy));
 
         // illegal move
@@ -1141,12 +1248,14 @@ var Chess = function() {
     // loop over the generated moves
     for (var move_count = 0; move_count < move_list.count; move_count++) {
       // backup current board position
-      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, hash_copy;
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, fifty_copy, hash_copy;
       board_copy = JSON.parse(JSON.stringify(board));
       side_copy = side;
       enpassant_copy = enpassant;
       castle_copy = castle;
+      fifty_copy = fifty;
       hash_copy = hash_key;
+      
       king_square_copy = JSON.parse(JSON.stringify(king_square));
       
       // make only legal moves
@@ -1169,6 +1278,7 @@ var Chess = function() {
       enpassant = enpassant_copy;
       castle = castle_copy;
       hash_key = hash_copy;
+      fifty = fifty_copy;
       king_square = JSON.parse(JSON.stringify(king_square_copy));
     }
   }
@@ -1195,12 +1305,13 @@ var Chess = function() {
     for (var move_count = 0; move_count < move_list.count; move_count++)
     {
       // backup current board position
-      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, hash_copy;
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, fifty_copy, hash_copy;
       board_copy = JSON.parse(JSON.stringify(board));
       side_copy = side;
       enpassant_copy = enpassant;
       castle_copy = castle;
       hash_copy = hash_key;
+      fifty_copy = fifty;
       king_square_copy = JSON.parse(JSON.stringify(king_square));
         
       // make only legal moves
@@ -1223,16 +1334,17 @@ var Chess = function() {
       enpassant = enpassant_copy;
       castle = castle_copy;
       hash_key = hash_copy;
+      fifty = fifty_copy;
       king_square = JSON.parse(JSON.stringify(king_square_copy));
       
       // print current move
       console.log(  'move' +
-                        ' ' + (move_count + 1) + ((move_count < 9) ? ':  ': ': ') +
-                        coordinates[get_move_source(move_list.moves[move_count])] +
-                        coordinates[get_move_target(move_list.moves[move_count])] +
-                        (get_move_piece(move_list.moves[move_count]) ?
-                        promoted_pieces[get_move_piece(move_list.moves[move_count])]: ' ') +
-                        '    nodes: ' + old_nodes + '\n');
+                    ' ' + (move_count + 1) + ((move_count < 9) ? ':  ': ': ') +
+                    coordinates[get_move_source(move_list.moves[move_count])] +
+                    coordinates[get_move_target(move_list.moves[move_count])] +
+                    (get_move_piece(move_list.moves[move_count]) ?
+                    promoted_pieces[get_move_piece(move_list.moves[move_count])]: ' ') +
+                    '    nodes: ' + old_nodes + '\n');
     }
     
     // append results
@@ -1270,10 +1382,10 @@ var Chess = function() {
   
   function tests() {
     parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
-    //parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
-    print_board();
-    perft_test(4);
     
+    //parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
+    
+    perft_test(3);
     
   }
   
