@@ -315,6 +315,41 @@ var Chess = function() {
     console.log(board_string);
   }
   
+  // print move
+  function print_move(move) {
+      if (get_move_piece(move))
+          return coordinates[get_move_source(move)] +
+                 coordinates[get_move_target(move)] +
+                 promoted_pieces[get_move_promoted(move)];
+      else
+          return coordinates[get_move_source(move)] +
+                 coordinates[get_move_target(move)];
+  }
+	
+  // print move list
+  function print_move_list(move_list) {
+    // print table header
+    var list_moves = 'Move     Capture  Double   Enpass   Castling\n\n';
+
+    // loop over moves in a movelist
+    for (var index = 0; index < move_list.count; index++) {
+      var move = move_list.moves[index];
+      list_moves += coordinates[get_move_source(move)] + coordinates[get_move_target(move)];
+      list_moves += (get_move_piece(move) ? promoted_pieces[get_move_piece(move)] : ' ');
+      list_moves += '    ' + get_move_capture(move) +
+                    '        ' +get_move_pawn(move) +
+                    '        ' + get_move_enpassant(move) +
+                    '        ' + get_move_castling(move) + '\n';
+    }
+    
+    // append total moves
+    list_moves += '\nTotal moves: ' + move_list.count;
+    
+    // print move list to console
+    console.log(list_moves);
+    
+  }
+  
   // reset board
   function reset_board() {
     // loop over board ranks
@@ -338,6 +373,9 @@ var Chess = function() {
     fifty = 0;
     hash_key = 0;
     king_square = [0, 0];
+    
+    // reset repetition table
+    for (var index = 0; index < repetition_table.length; index++) repetition_table[index] = 0;
   }
   
   // parse FEN string to init board position
@@ -454,30 +492,6 @@ var Chess = function() {
           MOVE GENERATOR
                  
   \****************************/
-	  
-  // print move list
-  function print_move_list(move_list) {
-    // print table header
-    var list_moves = 'Move     Capture  Double   Enpass   Castling\n\n';
-
-    // loop over moves in a movelist
-    for (var index = 0; index < move_list.count; index++) {
-      var move = move_list.moves[index];
-      list_moves += coordinates[get_move_source(move)] + coordinates[get_move_target(move)];
-      list_moves += (get_move_piece(move) ? promoted_pieces[get_move_piece(move)] : ' ');
-      list_moves += '    ' + get_move_capture(move) +
-                    '        ' +get_move_pawn(move) +
-                    '        ' + get_move_enpassant(move) +
-                    '        ' + get_move_castling(move) + '\n';
-    }
-    
-    // append total moves
-    list_moves += '\nTotal moves: ' + move_list.count;
-    
-    // print move list to console
-    console.log(list_moves);
-    
-  }
   
   /*
       Move formatting
@@ -1475,6 +1489,770 @@ var Chess = function() {
     return (side == white) ? score : -score;
   }
   
+  
+  /****************************\
+                 
+              SEARCH
+                 
+  \****************************/
+  
+  // variable to flag that time is up
+  var stopped = 0;
+  
+  /* 
+       These are the score bounds for the range of the mating scores
+     [-infinity, -mate_value ... -mate_score, ... score ... mate_score ... mate_value, infinity]
+  */
+     
+  const infinity = 50000;
+  const mate_value = 49000;
+  const mate_score = 48000;
+
+  // most valuable victim & less valuable attacker
+
+  /*
+                            
+      (Victims) Pawn Knight Bishop   Rook  Queen   King
+    (Attackers)
+          Pawn   105    205    305    405    505    605
+        Knight   104    204    304    404    504    604
+        Bishop   103    203    303    403    503    603
+          Rook   102    202    302    402    502    602
+         Queen   101    201    301    401    501    601
+          King   100    200    300    400    500    600
+  */
+
+  // MVV LVA
+  var mvv_lva = [
+	  0,   0,   0,   0,   0,   0,   0,  0,   0,   0,   0,   0,   0,
+	  0, 105, 205, 305, 405, 505, 605,  105, 205, 305, 405, 505, 605,
+	  0, 104, 204, 304, 404, 504, 604,  104, 204, 304, 404, 504, 604,
+	  0, 103, 203, 303, 403, 503, 603,  103, 203, 303, 403, 503, 603,
+	  0, 102, 202, 302, 402, 502, 602,  102, 202, 302, 402, 502, 602,
+	  0, 101, 201, 301, 401, 501, 601,  101, 201, 301, 401, 501, 601,
+	  0, 100, 200, 300, 400, 500, 600,  100, 200, 300, 400, 500, 600,
+
+	  0, 105, 205, 305, 405, 505, 605,  105, 205, 305, 405, 505, 605,
+	  0, 104, 204, 304, 404, 504, 604,  104, 204, 304, 404, 504, 604,
+	  0, 103, 203, 303, 403, 503, 603,  103, 203, 303, 403, 503, 603,
+	  0, 102, 202, 302, 402, 502, 602,  102, 202, 302, 402, 502, 602,
+	  0, 101, 201, 301, 401, 501, 601,  101, 201, 301, 401, 501, 601,
+	  0, 100, 200, 300, 400, 500, 600,  100, 200, 300, 400, 500, 600
+  ];
+
+  // max ply that we can reach within a search
+  const max_ply = 64;
+
+  // killer moves
+  var killer_moves = new Array(2 * max_ply);
+
+  // history moves [piece][square]
+  var history_moves = new Array(13 * 128);
+
+  /*
+        ================================
+              Triangular PV table
+        --------------------------------
+          PV line: e2e4 e7e5 g1f3 b8c6
+        ================================
+             0    1    2    3    4    5
+        
+        0    m1   m2   m3   m4   m5   m6
+        
+        1    0    m2   m3   m4   m5   m6 
+        
+        2    0    0    m3   m4   m5   m6
+        
+        3    0    0    0    m4   m5   m6
+         
+        4    0    0    0    0    m5   m6
+        
+        5    0    0    0    0    0    m6
+  */
+
+  // PV length
+  var pv_length = new Array(max_ply);
+
+  // PV table
+  var pv_table = new Array(max_ply * max_ply);
+
+  // follow PV & score PV move
+  var follow_pv, score_pv;
+  
+  // repetition table
+  var repetition_table = new Array(1000);
+  
+  // repetition index
+  var repetition_index = 0;
+
+  // half move counter
+  var ply = 0;
+  
+  // clear search data structures
+  function clear_search() {
+    // reset nodes counter
+    nodes = 0;
+    
+    // reset "time is up" flag
+    stopped = 0;
+    
+    // reset follow PV flags
+    follow_pv = 0;
+    score_pv = 0;
+    
+    // clear helper data structures for search
+    for (var index = 0; index < killer_moves.length; index++) killer_moves[index] = 0;
+    for (var index = 0; index < history_moves.length; index++) history_moves[index] = 0;
+    for (var index = 0; index < pv_table.length; index++) pv_table[index] = 0;
+    for (var index = 0; index < pv_length.length; index++) pv_length[index] = 0;
+  }
+
+  // enable PV move scoring
+  function enable_pv_scoring(move_list) {
+    // disable following PV
+    follow_pv = 0;
+    
+    // loop over the moves within a move list
+    for (var count = 0; count < move_list.count; count++) {
+      // make sure we hit PV move
+      if (pv_table[ply] == move_list.moves[count]) {
+        // enable move scoring
+        score_pv = 1;
+        
+        // enable following PV
+        follow_pv = 1;
+      }
+    }
+  }
+  
+  /*  =======================
+         Move ordering
+    =======================
+    
+    1. PV move
+    2. Captures in MVV/LVA
+    3. 1st killer move
+    4. 2nd killer move
+    5. History moves
+    6. Unsorted moves
+  */
+
+  // score moves
+  function score_move(move) {
+    // if PV move scoring is allowed
+    if (score_pv) {
+        // make sure we are dealing with PV move
+        if (pv_table[ply] == move) {
+            // disable score PV flag
+            score_pv = 0;
+            
+            // give PV move the highest score to search it first
+            return 20000;
+        }
+    }
+      
+    // score capture move
+    if (get_move_capture(move))
+      // score move by MVV LVA lookup [source piece][target piece]
+      return mvv_lva[board[get_move_source(move)] * 13 + board[get_move_target(move)]] + 10000
+    
+    // score quiet move
+    else {
+      // score 1st killer move
+      if (killer_moves[ply] == move)
+        return 9000;
+      
+      // score 2nd killer move
+      else if (killer_moves[max_ply + ply] == move)
+        return 8000;
+      
+      // score history move
+      else
+        return history_moves[get_move_piece(move) * 128 + get_move_target(move)];
+    }
+    
+    return 0;
+  }
+  
+  // sort moves in descending order
+  function sort_moves(move_list, best_move) {
+    // move scores
+    var move_scores = new Array(move_list.count);
+    
+    // score all the moves within a move list
+    for (var count = 0; count < move_list.count; count++) {
+        // if hash move available
+        if (best_move == move_list.moves[count])
+          // score move
+          move_scores[count] = 30000;
+
+        else
+          // score move
+          move_scores[count] = score_move(move_list.moves[count]);
+    }
+    
+    // loop over current move within a move list
+    for (var current_move = 0; current_move < move_list.count; current_move++) {
+      // loop over next move within a move list
+      for (var next_move = current_move + 1; next_move < move_list.count; next_move++) {
+        // compare current and next move scores
+        if (move_scores[current_move] < move_scores[next_move]) {
+          // swap scores
+          var temp_score = move_scores[current_move];
+          move_scores[current_move] = move_scores[next_move];
+          move_scores[next_move] = temp_score;
+          
+          // swap moves
+          var temp_move = move_list.moves[current_move];
+          move_list.moves[current_move] = move_list.moves[next_move];
+          move_list.moves[next_move] = temp_move;
+        }
+      }
+    }
+  }
+  
+  // print move scores
+  function print_move_scores(move_list) {
+    console.log("Move scores:\n\n");
+      
+    // loop over moves within a move list
+    for (var count = 0; count < move_list.count; count++)
+      console.log('move:', print_move(move_list.moves[count]),
+                  '    score: ' + score_move(move_list.moves[count]));
+
+  }
+  
+  // quiescence search
+  function quiescence(alpha, beta) {
+    // every 2047 nodes
+    //if((nodes & 2047 ) == 0)
+      // "listen" to the GUI/user input
+	    //communicate();
+  
+    // increment nodes count
+    nodes++;
+
+    // we are too deep, hence there's an overflow of arrays relying on max ply constant
+    if (ply > max_ply - 1)
+      // evaluate position
+      return evaluate();
+
+    // evaluate position
+    var evaluation = evaluate();
+    
+    // fail-hard beta cutoff
+    if (evaluation >= beta)
+      // node (position) fails high
+      return beta;
+    
+    // found a better move
+    if (evaluation > alpha)
+        // PV node (position)
+        alpha = evaluation;
+    
+    // create move list instance
+    var move_list = {
+      moves: new Array(256),
+      count: 0
+    }
+    
+    // generate moves
+    generate_moves(move_list);
+    
+    // sort moves
+    sort_moves(move_list, 0);
+    
+    // loop over moves within a movelist
+    for (var count = 0; count < move_list.count; count++) {
+      // backup current board position
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, fifty_copy, hash_copy;
+      board_copy = JSON.parse(JSON.stringify(board));
+      side_copy = side;
+      enpassant_copy = enpassant;
+      castle_copy = castle;
+      hash_copy = hash_key;
+      fifty_copy = fifty;
+      king_square_copy = JSON.parse(JSON.stringify(king_square));
+      
+      // increment ply
+      ply++;
+      
+      // increment repetition index & store hash key
+      repetition_index++;
+      repetition_table[repetition_index] = hash_key;
+      
+      // make sure to make only legal moves
+      if (make_move(move_list.moves[count], only_captures) == 0) {
+          // decrement ply
+          ply--;
+          
+          // decrement repetition index
+          repetition_index--;
+          
+          // skip to next move
+          continue;
+      }
+
+      // score current move
+      var score = -quiescence(-beta, -alpha);
+      
+      // decrement ply
+      ply--;
+      
+      // decrement repetition index
+      repetition_index--;
+
+      // restore board position
+      board = JSON.parse(JSON.stringify(board_copy));
+      side = side_copy;
+      enpassant = enpassant_copy;
+      castle = castle_copy;
+      hash_key = hash_copy;
+      fifty = fifty_copy;
+      king_square = JSON.parse(JSON.stringify(king_square_copy));
+      
+      // reutrn 0 if time is up
+      if (stopped == 1) return 0;
+      
+      // found a better move
+      if (score > alpha) {
+        // PV node (position)
+        alpha = score;
+        
+        // fail-hard beta cutoff
+        if (score >= beta)
+          // node (position) fails high
+          return beta;
+      }
+    }
+    
+    // node (position) fails low
+    return alpha;
+  }
+  
+  // full depth moves counter
+  const full_depth_moves = 4;
+
+  // depth limit to consider reduction
+  const reduction_limit = 3;
+
+  // negamax alpha beta search
+  function negamax(alpha, beta, depth)
+  {
+    // init PV length
+    pv_length[ply] = ply;
+    
+    // variable to store current move's score (from the static evaluation perspective)
+    var score;
+    
+    // best move (to store in TT)
+    var best_move = 0;
+    
+    // define hash flag
+    //var hash_flag = hash_flag_alpha;
+    
+    // if position repetition occurs
+    //if (ply && is_repetition() || fifty >= 100)
+        // return draw score
+        //return 0;
+    
+    // a hack by Pedro Castro to figure out whether the current node is PV node or not 
+    //var pv_node = beta - alpha > 1;
+    
+    // read hash entry if we're not in a root ply and hash entry is available
+    // and current node is not a PV node
+    //if (ply && (score = read_hash_entry(alpha, beta, &best_move, depth)) != no_hash_entry && pv_node == 0)
+      // if the move has already been searched (hence has a value)
+      // we just return the score for this move without searching it
+      //return score;
+        
+    // every 2047 nodes
+    //if((nodes & 2047 ) == 0)
+      // "listen" to the GUI/user input
+	    //communicate();
+    
+    // recursion escapre condition
+    if (depth == 0)
+        // run quiescence search
+        return evaluate();
+        //return quiescence(alpha, beta);
+    
+    // we are too deep, hence there's an overflow of arrays relying on max ply constant
+    if (ply > max_ply - 1)
+        // evaluate position
+        return evaluate();
+    
+    // increment nodes count
+    nodes++;
+    
+    // is king in check
+    var in_check = is_square_attacked(king_square[side], side ^ 1);
+    
+    // increase search depth if the king has been exposed into a check
+    if (in_check) depth++;
+    
+    // legal moves counter
+    var legal_moves = 0;
+      
+    /* get static evaluation score
+	  var static_eval = evaluate();
+      
+    // evaluation pruning / static null move pruning
+	  if (depth < 3 && !pv_node && !in_check &&  abs(beta - 1) > -infinity + 100) {   
+      // define evaluation margin
+		  var eval_margin = 120 * depth;
+		  
+		  // evaluation margin substracted from static evaluation score fails high
+		  if (static_eval - eval_margin >= beta)
+	      // evaluation margin substracted from static evaluation score
+			  return static_eval - eval_margin;
+	  }*/
+      
+    /* null move pruning
+    if (depth >= 3 && in_check == 0 && ply)
+    {
+        // preserve board state
+        copy_board();
+        
+        // increment ply
+        ply++;
+        
+        // increment repetition index & store hash key
+        repetition_index++;
+        repetition_table[repetition_index] = hash_key;
+        
+        // hash enpassant if available
+        if (enpassant != no_sq) hash_key ^= enpassant_keys[enpassant];
+        
+        // reset enpassant capture square
+        enpassant = no_sq;
+        
+        // switch the side, literally giving opponent an extra move to make
+        side ^= 1;
+        
+        // hash the side
+        hash_key ^= side_key;
+                
+        / search moves with reduced depth to find beta cutoffs
+           depth - 1 - R where R is a reduction limit /
+        score = -negamax(-beta, -beta + 1, depth - 1 - 2);
+
+        // decrement ply
+        ply--;
+        
+        // decrement repetition index
+        repetition_index--;
+            
+        // restore board state
+        take_back();
+
+        // reutrn 0 if time is up
+        if (stopped == 1) return 0;
+
+        // fail-hard beta cutoff
+        if (score >= beta)
+            // node (position) fails high
+            return beta;
+    }*/
+      
+    /* razoring
+    if (!pv_node && !in_check && depth <= 3) {
+      // get static eval and add first bonus
+      score = static_eval + 125;
+      
+      // define new score
+      var new_score;
+      
+      // static evaluation indicates a fail-low node
+      if (score < beta) {
+        // on depth 1
+        if (depth == 1) {
+          // get quiscence score
+          new_score = quiescence(alpha, beta);
+          
+          // return quiescence score if it's greater then static evaluation score
+          return (new_score > score) ? new_score : score;
+        }
+        
+        // add second bonus to static evaluation
+        score += 175;
+        
+        // static evaluation indicates a fail-low node
+        if (score < beta && depth <= 2) {
+          // get quiscence score
+          new_score = quiescence(alpha, beta);
+          
+          // quiescence score indicates fail-low node
+          if (new_score < beta)
+            // return quiescence score if it's greater then static evaluation score
+            return (new_score > score) ? new_score : score;
+        }
+      }
+	  }*/
+      
+    // create move list instance
+    var move_list = {
+      moves: new Array(256),
+      count: 0
+    }
+    
+    // generate moves
+    generate_moves(move_list);
+    
+    // if we are now following PV line
+    if (follow_pv)
+      // enable PV move scoring
+      enable_pv_scoring(move_list);
+    
+    // sort moves
+    sort_moves(move_list, best_move);
+    
+    // number of moves searched in a move list
+    var moves_searched = 0;
+    
+    // loop over moves within a movelist
+    for (var count = 0; count < move_list.count; count++) {
+      // backup current board position
+      var board_copy, king_square_copy, side_copy, enpassant_copy, castle_copy, fifty_copy, hash_copy;
+      board_copy = JSON.parse(JSON.stringify(board));
+      side_copy = side;
+      enpassant_copy = enpassant;
+      castle_copy = castle;
+      hash_copy = hash_key;
+      fifty_copy = fifty;
+      king_square_copy = JSON.parse(JSON.stringify(king_square));
+      
+      // increment ply
+      ply++;
+      
+      // increment repetition index & store hash key
+      repetition_index++;
+      repetition_table[repetition_index] = hash_key;
+      
+      // make sure to make only legal moves
+      if (make_move(move_list.moves[count], all_moves) == 0) {
+          // decrement ply
+          ply--;
+          
+          // decrement repetition index
+          repetition_index--;
+          
+          // skip to next move
+          continue;
+      }
+      
+      // increment legal moves
+      legal_moves++;
+      
+      // full depth search
+      //if (moves_searched == 0)
+        // do normal alpha beta search
+        score = -negamax(-beta, -alpha, depth - 1);
+
+      /* late move reduction (LMR)
+      else {
+        // condition to consider LMR
+        if(
+            moves_searched >= full_depth_moves &&
+            depth >= reduction_limit &&
+            in_check == 0 && 
+            get_move_capture(move_list.moves[count]) == 0 &&
+            get_move_promoted(move_list.moves[count]) == 0
+          )
+            // search current move with reduced depth:
+            score = -negamax(-alpha - 1, -alpha, depth - 2);
+        
+        // hack to ensure that full-depth search is done
+        else score = alpha + 1;
+        
+        // principle variation search PVS
+        if(score > alpha)
+        {
+         / Once you've found a move with a score that is between alpha and beta,
+            the rest of the moves are searched with the goal of proving that they are all bad.
+            It's possible to do this a bit faster than a search that worries that one
+            of the remaining moves might be good. /
+            score = -negamax(-alpha - 1, -alpha, depth-1);
+        
+         / If the algorithm finds out that it was wrong, and that one of the
+            subsequent moves was better than the first PV move, it has to search again,
+            in the normal alpha-beta manner.  This happens sometimes, and it's a waste of time,
+            but generally not often enough to counteract the savings gained from doing the
+            "bad move proof" search referred to earlier. /
+            if((score > alpha) && (score < beta))
+             / re-search the move that has failed to be proved to be bad
+                with normal alpha beta score bounds/
+                score = -negamax(-beta, -alpha, depth-1);
+        }
+      }*/
+      
+      // decrement ply
+      ply--;
+      
+      // decrement repetition index
+      repetition_index--;
+
+      // restore board position
+      board = JSON.parse(JSON.stringify(board_copy));
+      side = side_copy;
+      enpassant = enpassant_copy;
+      castle = castle_copy;
+      hash_key = hash_copy;
+      fifty = fifty_copy;
+      king_square = JSON.parse(JSON.stringify(king_square_copy));
+      
+      // reutrn 0 if time is up
+      if (stopped == 1)
+        return 0;
+      
+      // increment the counter of moves searched so far
+      moves_searched++;
+      
+      // found a better move
+      if (score > alpha) {
+        // switch hash flag from storing score for fail-low node
+        // to the one storing score for PV node
+        //hash_flag = hash_flag_exact;
+        
+        // store best move (for TT)
+        best_move = move_list.moves[count];
+    
+        // on quiet moves
+        if (get_move_capture(move_list.moves[count]) == 0)
+          // store history moves
+          history_moves[get_move_piece(move_list.moves[count]) * 128 + get_move_target(move_list.moves[count])] += depth;
+        
+        // PV node (position)
+        alpha = score;
+        
+        // write PV move
+        pv_table[ply * max_ply + ply] = move_list.moves[count];
+        
+        // loop over the next ply
+        for (var next_ply = ply + 1; next_ply < pv_length[ply + 1]; next_ply++)
+          // copy move from deeper ply into a current ply's line
+          pv_table[ply * max_ply + next_ply] = pv_table[(ply + 1) * max_ply + next_ply];
+        
+        // adjust PV length
+        pv_length[ply] = pv_length[ply + 1];
+        
+        // fail-hard beta cutoff
+        if (score >= beta)
+        {
+          // store hash entry with the score equal to beta
+          //write_hash_entry(beta, best_move, depth, hash_flag_beta);
+      
+          // on quiet moves
+          if (get_move_capture(move_list.moves[count]) == 0) {
+            // store killer moves
+            killer_moves[max_ply + ply] = killer_moves[ply];
+            killer_moves[ply] = move_list.moves[count];
+          }
+          
+          // node (position) fails high
+          return beta;
+        }            
+      }
+    }
+    
+    // we don't have any legal moves to make in the current postion
+    if (legal_moves == 0) {
+      // king is in check
+      if (in_check)
+        // return mating score (assuming closest distance to mating position)
+        return -mate_value + ply;
+      
+      // king is not in check
+      else
+        // return stalemate score
+        return 0;
+    }
+    
+    // store hash entry with the score equal to alpha
+    //write_hash_entry(alpha, best_move, depth, hash_flag);
+    
+    // node (position) fails low
+    return alpha;
+  }  
+
+  // search position for the best move
+  function search_position(depth) {
+    // search start time
+    var start = new Date().getTime();
+
+    // define best score variable
+    var score = 0;
+    
+    // clear search data structures
+    clear_search();
+        
+    // define initial alpha beta bounds
+    var alpha = -infinity;
+    var beta = infinity;
+ 
+    // iterative deepening
+    for (var current_depth = 1; current_depth <= depth; current_depth++)
+    {
+      // if time is up
+      if (stopped == 1)
+		    // stop calculating and return best move so far 
+		    break;
+	  
+      // enable follow PV flag
+      follow_pv = 1;
+      
+      // find best move within a given position
+      score = negamax(alpha, beta, current_depth);
+
+      // we fell outside the window, so try again with a full-width window (and the same depth)
+      /*if ((score <= alpha) || (score >= beta)) {
+        alpha = -infinity;    
+        beta = infinity;      
+        continue;
+      }*/
+      //console.log(current_depth);
+
+      // set up the window for the next iteration
+      alpha = score - 50;
+      beta = score + 50;
+      
+      // if PV is available
+      if (pv_length[0]) {
+        // print search info
+        if (score > -mate_value && score < -mate_score)
+          console.log('Score: mate in %d\nDepth: %d\nNodes: %d\nTime %d', -(score + mate_value) / 2 - 1, current_depth, nodes, new Date().getTime() - start);
+        
+        else if (score > mate_score && score < mate_value)
+          console.log('Score: mate in %d\nDepth: %d\nNodes: %d\nTime %d', (mate_value - score) / 2 + 1, current_depth, nodes, new Date().getTime() - start);   
+        
+        else
+          console.log('Score: %d cp\nDepth: %d\nNodes: %d\nTime: %d', score, current_depth, nodes, new Date().getTime() - start);
+
+        // define move string
+        var pv_line = 'PV: ';
+        
+        // loop over the moves within a PV line
+        for (var count = 0; count < pv_length[0]; count++)
+          // print PV move
+          pv_line += print_move(pv_table[count]) + ' ';
+        
+        // print new line
+        console.log(pv_line);
+      }
+    }
+
+    // print best move
+    //printf("bestmove ");
+    
+    //if (pv_table[0])
+        //print_move(pv_table[0]);
+    
+    //else
+        // shouldn't get here
+        //printf("(none)");
+    
+    //printf("\n");
+  }
 
   /****************************\
                  
@@ -1500,10 +2278,33 @@ var Chess = function() {
   \****************************/
   
   function tests() {
+    // parse position from FEN string
     parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
     print_board();
     
-    console.log(evaluate());
+    /* create move list
+    var move_list = {
+      moves: new Array(256),
+      count: 0
+    }
+    
+    // generate moves
+    generate_moves(move_list);
+    
+    // print move list
+    print_move_list(move_list);
+    
+    // init search variables
+    clear_search();
+    
+    // sort moves
+    sort_moves(move_list);
+    
+    // print move list after move ordering
+    print_move_scores(move_list);
+    */
+    
+    search_position(3);
   }
   
   /****************************\
@@ -1512,21 +2313,18 @@ var Chess = function() {
                  
   \****************************/
 
-  return {
-    // print chess board to console
-    print_board: function() { return print_board(); },
-    
+  return {    
     // parse FEN to init board position
     parse_fen: function(fen) { return parse_fen(fen); },
 
     // generate pseudo legal moves
     generate_moves: function(move_list) { return generate_moves(move_list); },
-        
-    // debug
-    tests: function() { return tests(); }
     
     // search
     //search: function() { return new Promise(function() {search(); }); }
+    
+    // debug
+    tests: function() { return tests(); }
   }
 }
 
