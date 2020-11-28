@@ -1728,7 +1728,7 @@ var Chess = function() {
     //if((nodes & 2047 ) == 0)
       // "listen" to the GUI/user input
 	    //communicate();
-  
+
     // increment nodes count
     nodes++;
 
@@ -1873,14 +1873,14 @@ var Chess = function() {
     
     // recursion escapre condition
     if (depth == 0)
-        // run quiescence search
-        return evaluate();
-        //return quiescence(alpha, beta);
-    
+      // run quiescence search
+      //return evaluate();
+      return quiescence(alpha, beta);
+
     // we are too deep, hence there's an overflow of arrays relying on max ply constant
     if (ply > max_ply - 1)
-        // evaluate position
-        return evaluate();
+      // evaluate position
+      return evaluate();
     
     // increment nodes count
     nodes++;
@@ -2279,7 +2279,7 @@ var Chess = function() {
   
   function tests() {
     // parse position from FEN string
-    parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+    parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
     print_board();
     
     /* create move list
@@ -2304,7 +2304,7 @@ var Chess = function() {
     print_move_scores(move_list);
     */
     
-    search_position(3);
+    search_position(5);
   }
   
   /****************************\
