@@ -1244,12 +1244,6 @@ var Chess = function() {
       return;
     }
     
-    // reset move list
-    var move_list = {
-      moves: [],
-      count: 0
-    };
-    
     // create move list
     var move_list = {
       moves: new Array(256),
@@ -1276,12 +1270,6 @@ var Chess = function() {
       if (!make_move(move_list.moves[move_count], all_moves))
         // skip illegal move
         continue;
-      
-      if (side && board[get_move_target(move_list.moves[move_count])] >= 7)
-      {      console.log('wrong side moved piece!');
-        console.log(depth)
-        console.log(move_count)
-      }
       
       // recursive call
       perft_driver(depth - 1);
@@ -1714,7 +1702,7 @@ var Chess = function() {
   // print move scores
   function print_move_scores(move_list) {
     console.log("Move scores:\n\n");
-      
+
     // loop over moves within a move list
     for (var count = 0; count < move_list.count; count++)
       console.log('move:', print_move(move_list.moves[count]),
@@ -1728,7 +1716,7 @@ var Chess = function() {
     //if((nodes & 2047 ) == 0)
       // "listen" to the GUI/user input
 	    //communicate();
-
+  
     // increment nodes count
     nodes++;
 
@@ -1742,13 +1730,17 @@ var Chess = function() {
     
     // fail-hard beta cutoff
     if (evaluation >= beta)
+    {
       // node (position) fails high
       return beta;
+    }
     
     // found a better move
     if (evaluation > alpha)
-        // PV node (position)
-        alpha = evaluation;
+    {
+      // PV node (position)
+      alpha = evaluation;
+    }
     
     // create move list instance
     var move_list = {
@@ -1780,19 +1772,19 @@ var Chess = function() {
       // increment repetition index & store hash key
       repetition_index++;
       repetition_table[repetition_index] = hash_key;
-      
-      // make sure to make only legal moves
-      if (make_move(move_list.moves[count], only_captures) == 0) {
-          // decrement ply
-          ply--;
-          
-          // decrement repetition index
-          repetition_index--;
-          
-          // skip to next move
-          continue;
-      }
 
+      // make sure to make only legal moves
+      if (!make_move(move_list.moves[count], only_captures)) {
+        // decrement ply
+        ply--;
+        
+        // decrement repetition index
+        repetition_index--;
+
+        // skip to next move
+        continue;
+      }
+      
       // score current move
       var score = -quiescence(-beta, -alpha);
       
@@ -1815,14 +1807,17 @@ var Chess = function() {
       if (stopped == 1) return 0;
       
       // found a better move
-      if (score > alpha) {
+      if (score > alpha)
+      {
         // PV node (position)
         alpha = score;
         
         // fail-hard beta cutoff
         if (score >= beta)
+        {
           // node (position) fails high
           return beta;
+        }
       }
     }
     
@@ -1874,7 +1869,6 @@ var Chess = function() {
     // recursion escapre condition
     if (depth == 0)
       // run quiescence search
-      //return evaluate();
       return quiescence(alpha, beta);
 
     // we are too deep, hence there's an overflow of arrays relying on max ply constant
@@ -2030,7 +2024,7 @@ var Chess = function() {
       repetition_table[repetition_index] = hash_key;
       
       // make sure to make only legal moves
-      if (make_move(move_list.moves[count], all_moves) == 0) {
+      if (!make_move(move_list.moves[count], all_moves)) {
           // decrement ply
           ply--;
           
@@ -2279,7 +2273,7 @@ var Chess = function() {
   
   function tests() {
     // parse position from FEN string
-    parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
+    parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
     print_board();
     
     /* create move list
@@ -2304,7 +2298,10 @@ var Chess = function() {
     print_move_scores(move_list);
     */
     
+    //perft_test(3);
+    
     search_position(5);
+    
   }
   
   /****************************\
