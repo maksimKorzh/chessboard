@@ -133,16 +133,16 @@ var Chess = function() {
   var rook_offsets = [16, -16, 1, -1];
   var king_offsets = [16, -16, 1, -1, 15, 17, -15, -17];
   
-  // 0x88 chess board representation
+  // 0x88 chess board representation & PST scores
   var board = [
-      r, n, b, q, k, b, n, r,  o, o, o, o, o, o, o, o,
-      p, p, p, p, p, p, p, p,  o, o, o, o, o, o, o, o,
-      e, e, e, e, e, e, e, e,  o, o, o, o, o, o, o, o,
-      e, e, e, e, e, e, e, e,  o, o, o, o, o, o, o, o,
-      e, e, e, e, e, e, e, e,  o, o, o, o, o, o, o, o,
-      e, e, e, e, e, e, e, e,  o, o, o, o, o, o, o, o,
-      P, P, P, P, P, P, P, P,  o, o, o, o, o, o, o, o,
-      R, N, B, Q, K, B, N, R,  o, o, o, o, o, o, o, o
+      r, n, b, q, k, b, n, r,  0,  0,  5,  5,  0,  0,  5,  0,
+      p, p, p, p, p, p, p, p,  5,  5,  0,  0,  0,  0,  5,  5,
+      e, e, e, e, e, e, e, e,  5, 10, 15, 20, 20, 15, 10,  5,
+      e, e, e, e, e, e, e, e,  5, 10, 20, 30, 30, 20, 10,  5, 
+      e, e, e, e, e, e, e, e,  5, 10, 20, 30, 30, 20, 10,  5,
+      e, e, e, e, e, e, e, e,  5, 10, 15, 20, 20, 15, 10,  5,
+      P, P, P, P, P, P, P, P,  5,  5,  0,  0,  0,  0,  5,  5,
+      R, N, B, Q, K, B, N, R,  0,  0,  5,  5,  0,  0,  5,  0
   ];
   
   // side to move
@@ -1355,7 +1355,126 @@ var Chess = function() {
     // print results
     console.log(result_string);
   }
+  
 
+  /****************************\
+                 
+            EVALUATION
+                 
+  \****************************/
+  
+  // piece weights
+  var piece_weights = [0, 100, 300, 350, 500, 900, 1000, -100, -300, -350, -500, -900, -1000];
+
+  // evaluate position
+  function evaluate() {
+    // piece counts for material draw detection
+    var piece_counts = {
+      [P]: 0, [N]: 0, [B]: 0, [R]: 0, [Q]: 0, [K]: 0,
+      [p]: 0, [n]: 0, [b]: 0, [r]: 0, [q]: 0, [k]: 0
+    }
+
+    // static score (material + positional benefits)
+    var score = 0;
+    
+    // loop over board squares
+    for(var square = 0; square < 128; square++)
+    {
+        // make sure square is on board
+        if(!(square & 0x88))
+        {
+            // init piece
+            var piece = board[square]
+            
+            // if piece available
+            if(piece)
+            {
+                // count piece
+                piece_counts[piece]++;
+                
+                // calculate material score
+                score += piece_weights[piece];
+                
+                // white positional score
+                if (piece >= P && piece <= K)
+                  // calculate positional score
+                  score += board[square + 8];
+                  
+                // black positional score
+                else if (piece >= p && piece <= k)
+                  // calculate positional score
+                  score -= board[square + 8];
+            }
+        }
+    }
+    
+    // no pawns on board (material draw detection)
+    if(!piece_counts[P] && !piece_counts[p]) {
+      // no rooks & queens on board
+      if (!piece_counts[R] && !piece_counts[r] && !piece_counts[Q] && !piece_counts[q]) {
+	      // no bishops on board
+	      if (!piece_counts[B] && !piece_counts[b]) {
+	        // less than 3 knights on board for either side
+          if (piece_counts[N] < 3 && piece_counts[n] < 3)
+            // return material draw
+            return 0;
+	      }
+	      
+	      // no knights on board
+	      else if (!piece_counts[N] && !piece_counts[n]) {
+          // less than 2 bishops on board for both sides
+          if (Math.abs(piece_counts[B] - piece_counts[b]) < 2)
+            // return material draw
+            return 0;
+	      }
+	      
+	      // less than 3 white knights and no white bishops or 1 white bishop and no white knights
+	      else if ((piece_counts[N] < 3 && !piece_counts[B]) || (piece_counts[B] == 1 && !piece_counts[N])) {
+	        // same as above but for black
+	        if ((piece_counts[n] < 3 && !piece_counts[b]) || (piece_counts[b] == 1 && !piece_counts[n]))
+	          // return material draw
+	          return 0;
+	      }
+	      
+	    }
+	    
+	    // no queens on board
+	    else if (!piece_counts[Q] && !piece_counts[q]) {
+        // each side has one rook
+        if (piece_counts[R] == 1 && piece_counts[r] == 1) {
+          // each side has less than two minor pieces
+          if ((piece_counts[N] + piece_counts[B]) < 2 && (piece_counts[n] + piece_counts[b]) < 2)
+            // return material draw
+            return 0;
+        }
+        
+        // white has one rook and no black rooks
+        else if (piece_counts[R] == 1 && !piece_counts[r]) {        
+          // white has no minor pieces and black has either one or two minor pieces
+          if ((piece_counts[N] + piece_counts[B] == 0) &&
+            (((piece_counts[n] + piece_counts[b]) == 1) || 
+             ((piece_counts[n] + piece_counts[b]) == 2)))
+            // return material draw
+            return 0;
+
+        }
+        
+        // black has one rook and no white rooks
+        else if (piece_counts[r] == 1 && !piece_counts[R]) {
+          // black has no minor pieces and white has either one or two minor pieces
+          if ((piece_counts[n] + piece_counts[b] == 0) &&
+            (((piece_counts[N] + piece_counts[B]) == 1) ||
+             ((piece_counts[N] + piece_counts[B]) == 2)))
+            // return material draw
+            return 0;
+        }
+      }
+    }
+    
+    // return score depending on side to move
+    return (side == white) ? score : -score;
+  }
+  
 
   /****************************\
                  
@@ -1383,10 +1502,8 @@ var Chess = function() {
   function tests() {
     parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
     print_board();
-    //parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
     
-    perft_test(5);
-    
+    console.log(evaluate());
   }
   
   /****************************\
@@ -1401,16 +1518,10 @@ var Chess = function() {
     
     // parse FEN to init board position
     parse_fen: function(fen) { return parse_fen(fen); },
-    
-    // print attacked squares
-    print_attacked_squares: function(side) { return print_attacked_squares(side); },
-    
+
     // generate pseudo legal moves
     generate_moves: function(move_list) { return generate_moves(move_list); },
-    
-    // print move list
-    print_move_list: function(move_list) { return print_move_list(move_list); },
-    
+        
     // debug
     tests: function() { return tests(); }
     
