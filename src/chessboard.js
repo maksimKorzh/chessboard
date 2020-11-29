@@ -1444,7 +1444,7 @@ var Board = function() {
   var click_lock = 0;
 
   // user input variables
-  var user_source, user_target, last_target;
+  var user_source, user_target, last_source, last_target;
   
   // cell colors backups
   var source_color, target_color;
@@ -1508,38 +1508,28 @@ var Board = function() {
   function drag_piece(square) {
     // init source square
     user_source = square;
-    console.log(square)
   }
   
   // drag piece
   function drag_over(event) {
     event.preventDefault();
-    console.log('dragging...')
   }
   
   // drop piece
   function drop_piece(square) {
     // init target square
     user_target = square;
-    console.log(square)
+
     // move piece
     move_piece(square);
   }
   
-  function tap_piece(square) {
+  function tap_piece(square) {    
     // convert div ID to square index
     var click_square = parseInt(square, 10)
-
-    // init user target square
-    user_target = click_square;
     
     // if user clicks on source square 
-    if(!click_lock && board[click_square]){
-      // highlight clicked square
-      document.getElementById(user_target).style.backgroundColor = target_color;
-      source_color = document.getElementById(square).style.backgroundColor;
-      document.getElementById(square).style.backgroundColor = SELECT_COLOR;
-      
+    if(!click_lock && board[click_square]) {
       // init user source square
       user_source = click_square;
       
@@ -1549,9 +1539,9 @@ var Board = function() {
     
     // if user clicks on destination square
     else if(click_lock) {
-      // highlight square
-      document.getElementById(user_source).style.backgroundColor = source_color;
-      
+      // init user target square
+      user_target = click_square;
+    
       // unlock click
       click_lock ^= 1;
       
@@ -1576,7 +1566,9 @@ var Board = function() {
     let move_str = coordinates[user_source] + 
                    coordinates[user_target] + 
                    ( promoted_piece ? promoted_pieces[promoted_piece] : '');
+    
     console.log(move_str)
+    
     // move to make
     var valid_move  = is_valid(move_str);
     
@@ -1592,16 +1584,8 @@ var Board = function() {
       
       // update board
       update_board();
-      
-      // highlight square
-      if (last_target) 
-        document.getElementById(last_target).style.backgroundColor = target_color;
+    } else {}
 
-      last_target = square;
-      target_color = document.getElementById(square).style.backgroundColor;
-      document.getElementById(square).style.backgroundColor = SELECT_COLOR;
-    }      
-    
     // update position
     update_board();
   } 
@@ -1697,26 +1681,7 @@ var board = new Board();
 board.tests();
 
 
-// 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 '
-// 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 '
-// 'r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 '
 
-/*
-I just want to search on a board separate from the board associated with GUI.
-Well, probably instantiating a board should do a trick.
-What if I simply create several instances, say:
-
-// GUI
-var board = new Chess();
-
-// engine
-var engine = new Chess();
-
-engine.search(board.position)
-
-
-
-*/
 
 
 
