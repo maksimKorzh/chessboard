@@ -195,7 +195,8 @@ var Board = function() {
            ZOBRIST KEYS
 
    ============================              
-  \****************************/  
+  \****************************/ 
+ 
   // random piece keys (piece * square)
   var piece_keys = new Array(13 * 128);
   
@@ -373,7 +374,7 @@ var Board = function() {
     castle = 0;
     fifty = 0;
     hash_key = 0;
-    king_square = [0, 0];    
+    king_square = [0, 0];
   }
 
   
@@ -1125,7 +1126,8 @@ var Board = function() {
               PERFT
 
    ============================              
-  \****************************/  
+  \****************************/
+
   // visited nodes count
   var nodes = 0;
   
@@ -1499,7 +1501,7 @@ var Board = function() {
         // make sure square is on board
         if ((square & 0x88) == 0)
           // draw pieces
-          document.getElementById(square).innerHTML = '<img src ="Images/' + (board[square]) +'.gif">';;
+          document.getElementById(square).innerHTML = '<img draggable src ="Images/' + (board[square]) +'.gif">';;
       }
     }
   }
@@ -1552,22 +1554,14 @@ var Board = function() {
   
   function move_piece(square) {
     // promoted piece
-    var promoted_piece = 0;
-    
-    // white pawn promotes
-    if ((board[user_source] == P) && (user_source >= 0 && user_source <= 7))
-      promoted_piece = Q; // queen only for now
-    
-    // black pawn promotes
-    else if ((board[user_source] == p) && (user_source >= 112 && user_source <= 119))
-      promoted_piece = q; // queen only for now
-    
+    var promoted_piece = Q;
+        
     // make move on internal board
     let move_str = coordinates[user_source] + 
-                   coordinates[user_target] + 
-                   ( promoted_piece ? promoted_pieces[promoted_piece] : '');
+                   coordinates[user_target];// + 
+                   //promoted_pieces[promoted_piece];
     
-    console.log(move_str)
+    console.log(move_str);
     
     // move to make
     var valid_move  = is_valid(move_str);
@@ -1619,11 +1613,11 @@ var Board = function() {
 
   function tests() {
     // parse position from FEN string
-    //parse_fen('r3k2r/pPppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPpP/R3K2R w KQkq - 0 1 ');
-    parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
+    parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+    //parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
     print_board();
     
-    /* create move list
+    // create move list
     var move_list = {
       moves: new Array(256),
       count: 0
@@ -1634,13 +1628,9 @@ var Board = function() {
     
     // print move list
     print_move_list(move_list);
-    
+
     // perft test
-    perft_test(3);*/
-    
-    
-    draw_board();
-    update_board();
+    perft_test(3);
     
   }
   
@@ -1669,6 +1659,12 @@ var Board = function() {
     // pick piece
     drop_piece: function(square) { drop_piece(square) },
     
+    // draw board
+    draw_board: function() { draw_board(); },
+    
+    // update_board
+    update_board: function() { update_board(); },
+    
     // debug
     tests: function() { return tests(); }
   }
@@ -1679,9 +1675,41 @@ var Board = function() {
 // create engine instance
 var board = new Board();
 board.tests();
+board.parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
+board.draw_board();
+board.update_board();
 
 
+/*
+document.addEventListener("dragstart", function(e) {
+  var img = document.createElement("img");
+  e.dataTransfer.setDragImage(img, 5000, 5000);
+  drag(e)
+}, false);
 
+var drag_image, drag_x, drag_y;
+
+function drag(ev) {
+  drag_image = ev.target.cloneNode(true);
+  drag_image.style.position = "absolute";
+  drag_image.style.opacity = "1.0";
+  document.body.appendChild(drag_image);
+  ev.dataTransfer.setData("text", ev.target.id);
+}
+
+document.addEventListener("dragover", function(ev) {
+  ev = ev || window.event;
+  drag_x = ev.pageX;
+  drag_y = ev.pageY;
+  drag_image.style.left = drag_x + "px";
+  drag_image.style.top = (drag_y - 20) + "px";
+  console.log("X: " + drag_x + " Y: " + drag_y);
+}, false);
+
+document.addEventListener("dragend", function(event) {
+  drag_image.style.display = 'none';
+  drag_image.remove()
+});*/
 
 
 
