@@ -1,12 +1,9 @@
-# Javascript chess [work in progress]
-Javascript chess library
+# Chess board to embedd into any website [work in progress]
+A pure javascript chess board widget that knows rules of chess
 
-# Concept
-All in one bundle allowing to embedd
-a smart chess board into any website.
-
-# Use cases
- - legal move 2 player
- - analysis / play vs PC / self play
- - load FEN/PGN, navigate through PGN
- - check states of the game
+# Features
+ - two click/drag-n-drop(in progress) moving pieces
+ - move validation
+ - console debugging
+ - perft
+ - FEN parsing
