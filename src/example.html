@@ -1,0 +1,44 @@
+<html>
+  <head>
+    <title>Chess board</title>
+    
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    
+  </head>
+  <body>
+    <div class="row mt-5" style="position: absolute; left: 20%;">
+      <div align="center">
+        <!-- Chess board view -->
+        <div id="chessboard"></div>
+        
+        <!-- Controls -->
+        <div class="btn-group col mt-2" style="width: 450px;">
+          <button class="btn btn-outline-secondary" onclick="board.first_move()"><strong><<</strong></button>
+          <button class="btn btn-outline-secondary" onclick="board.undo_move()"><strong><</strong></button>
+          <button class="btn btn-outline-secondary" onclick="board.redo_move()"><strong>></strong></button>
+          <button class="btn btn-outline-secondary" onclick="board.last_move()"><strong>>></strong></button>
+        </div>
+        
+      </div>
+
+      <div class="col" >
+        <!-- FEN -->
+        <div class="input-group" style="width: 420px;">
+          <input type="text" class="form-control" placeholder="FEN" >
+          <div class="input-group-append">
+            <button class="btn btn-outline-success">Set</button>
+          </div>
+        </div>
+        
+        <!-- PGN -->
+        <textarea name="text" class="form-control mt-2" placeholder="PGN" style="width: 420px; height: 372px;"></textarea>
+        <button class="col btn btn-outline-success mt-2">Set</button>
+      </div>
+
+    </div>
+
+    <!-- Chess board script -->
+    <script src="chessboard.js"></script>
+  </body>
+</html>

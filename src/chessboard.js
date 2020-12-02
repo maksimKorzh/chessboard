@@ -162,7 +162,8 @@ var Board = function(width, light_square, dark_square, select_color) {
   // move stack
   var move_stack = {
     moves: new Array(1000),
-    count: 0
+    count: 0,
+    size: 0
   }
 
 
@@ -381,10 +382,17 @@ var Board = function(width, light_square, dark_square, select_color) {
     fifty = 0;
     hash_key = 0;
     king_square = [0, 0];
+    
+    // reset move stack
+    move_stack = {
+      moves: new Array(1000),
+      count: 0,
+      size: 0
+    }
   }
   
   // push move onto move stack
-  function push_move(move) {    
+  function push_move(move) {
     // push move onto stack
     move_stack.moves[move_stack.count] = {
       move: move,
@@ -401,11 +409,18 @@ var Board = function(width, light_square, dark_square, select_color) {
     
     // increment move count
     move_stack.count++;
+    
+    // increment stack length
+    move_stack.size++;
   }
   
   // undo last move
   function undo_move() {
-    try {
+    // adjust move count when rewind
+    if (move_stack.count && move_stack.count == move_stack.size) move_stack.count--;
+    
+    // take back limit to first move
+    if (move_stack.count >= 1) {
       // decrement move count
       move_stack.count--;
       
@@ -414,24 +429,20 @@ var Board = function(width, light_square, dark_square, select_color) {
       side = move_stack.moves[move_stack.count].position.side;
       en_passant: move_stack.moves[move_stack.count].position.en_passant;
       castle: move_stack.moves[move_stack.count].position.castle;
-      hasj_ley: move_stack.moves[move_stack.count].position.hash_key;
+      hash_key: move_stack.moves[move_stack.count].position.hash_key;
       fifty: move_stack.moves[move_stack.count].position.fifty;
       king_square: JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.king_square))
       
       // update board
       draw_board();
       update_board();
-    }
-    
-    catch (e) {
-      // restore count
-      move_stack.count++;
     }
   }
   
   // redo next move
   function redo_move() {
-    try {
+    // limit redo to last move
+    if (move_stack.count < move_stack.size - 1) {
       // decrement move count
       move_stack.count++;
       
@@ -440,7 +451,7 @@ var Board = function(width, light_square, dark_square, select_color) {
       side = move_stack.moves[move_stack.count].position.side;
       en_passant: move_stack.moves[move_stack.count].position.en_passant;
       castle: move_stack.moves[move_stack.count].position.castle;
-      hasj_ley: move_stack.moves[move_stack.count].position.hash_key;
+      hash_key: move_stack.moves[move_stack.count].position.hash_key;
       fifty: move_stack.moves[move_stack.count].position.fifty;
       king_square: JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.king_square))
       
@@ -448,13 +459,45 @@ var Board = function(width, light_square, dark_square, select_color) {
       draw_board();
       update_board();
     }
+  }
+  
+  // go to game start
+  function first_move() {
+    // set move count
+    move_stack.count = 0;
     
-    catch (e) {
-      // restore count
-      move_stack.count--;
-    }
+    // restore initial board position
+    board = JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.board));
+    side = move_stack.moves[move_stack.count].position.side;
+    en_passant: move_stack.moves[move_stack.count].position.en_passant;
+    castle: move_stack.moves[move_stack.count].position.castle;
+    hash_key: move_stack.moves[move_stack.count].position.hash_key;
+    fifty: move_stack.moves[move_stack.count].position.fifty;
+    king_square: JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.king_square))
+    
+    // update board
+    draw_board();
+    update_board();
   }
 
+  // go to game end
+  function last_move() {
+    // set move count
+    move_stack.count = move_stack.size - 1;
+    
+    // restore initial board position
+    board = JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.board));
+    side = move_stack.moves[move_stack.count].position.side;
+    en_passant: move_stack.moves[move_stack.count].position.en_passant;
+    castle: move_stack.moves[move_stack.count].position.castle;
+    hash_key: move_stack.moves[move_stack.count].position.hash_key;
+    fifty: move_stack.moves[move_stack.count].position.fifty;
+    king_square: JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.king_square))
+    
+    // update board
+    draw_board();
+    update_board();
+  }
   
   /****************************\
    ============================
@@ -1548,7 +1591,7 @@ var Board = function(width, light_square, dark_square, select_color) {
 
   function draw_board() {
     // create HTML rable tag
-    var chess_board = '<table align="center" cellspacing="0" style="border: 1px solid black">';
+    var chess_board = '<table cellspacing="0" style="border: 1px solid black">';
     
     // loop over board rows
     for (var row = 0; row < 8; row++) {
@@ -1678,11 +1721,14 @@ var Board = function(width, light_square, dark_square, select_color) {
     
     // if move is valid
     if (valid_move) {
-      // push move into move stack
-      push_move(valid_move);
-
+      // push first move into move stack
+      if (move_stack.count == 0) push_move(valid_move);
+      
       // make move on internal board
       make_move(valid_move, all_moves);
+      
+      // push move into move stack
+      push_move(valid_move);
       
       // update last square
       last_square = user_target;
@@ -1784,7 +1830,13 @@ var Board = function(width, light_square, dark_square, select_color) {
     undo_move: function() { undo_move(); },
     
     // redo next move
-    redo_move: function() { redo_move(); },   
+    redo_move: function() { redo_move(); },
+    
+    // go to game start
+    first_move: function() { first_move(); },
+    
+    // got to game end
+    last_move: function() { last_move(); },   
     
     // debug
     tests: function() { return tests(); }
