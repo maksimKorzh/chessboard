@@ -158,6 +158,12 @@ var Board = function(width, light_square, dark_square, select_color) {
 
   // kings' squares
   var king_square = [e1, e8];
+  
+  // move stack
+  var move_stack = {
+    moves: new Array(1000),
+    count: 0
+  }
 
 
   /****************************\
@@ -375,6 +381,78 @@ var Board = function(width, light_square, dark_square, select_color) {
     fifty = 0;
     hash_key = 0;
     king_square = [0, 0];
+  }
+  
+  // push move onto move stack
+  function push_move(move) {    
+    // push move onto stack
+    move_stack.moves[move_stack.count] = {
+      move: move,
+      position: {
+        board: JSON.parse(JSON.stringify(board)),
+        side: side,
+        en_passant: enpassant,
+        castle: castle,
+        hash_key: hash_key,
+        fifty: fifty,
+        king_square: JSON.parse(JSON.stringify(king_square))
+      }
+    };
+    
+    // increment move count
+    move_stack.count++;
+  }
+  
+  // undo last move
+  function undo_move() {
+    try {
+      // decrement move count
+      move_stack.count--;
+      
+      // restore previous board position
+      board = JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.board));
+      side = move_stack.moves[move_stack.count].position.side;
+      en_passant: move_stack.moves[move_stack.count].position.en_passant;
+      castle: move_stack.moves[move_stack.count].position.castle;
+      hasj_ley: move_stack.moves[move_stack.count].position.hash_key;
+      fifty: move_stack.moves[move_stack.count].position.fifty;
+      king_square: JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.king_square))
+      
+      // update board
+      draw_board();
+      update_board();
+    }
+    
+    catch (e) {
+      // restore count
+      move_stack.count++;
+    }
+  }
+  
+  // redo next move
+  function redo_move() {
+    try {
+      // decrement move count
+      move_stack.count++;
+      
+      // restore previous board position
+      board = JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.board));
+      side = move_stack.moves[move_stack.count].position.side;
+      en_passant: move_stack.moves[move_stack.count].position.en_passant;
+      castle: move_stack.moves[move_stack.count].position.castle;
+      hasj_ley: move_stack.moves[move_stack.count].position.hash_key;
+      fifty: move_stack.moves[move_stack.count].position.fifty;
+      king_square: JSON.parse(JSON.stringify(move_stack.moves[move_stack.count].position.king_square))
+      
+      // update board
+      draw_board();
+      update_board();
+    }
+    
+    catch (e) {
+      // restore count
+      move_stack.count--;
+    }
   }
 
   
@@ -1264,7 +1342,7 @@ var Board = function(width, light_square, dark_square, select_color) {
   \****************************/
 
   // parse FEN string to init board position
-  function parse_fen(fen) {
+  function set_fen(fen) {
     // reset chess board and state variables
     reset_board();
     
@@ -1600,13 +1678,14 @@ var Board = function(width, light_square, dark_square, select_color) {
     
     // if move is valid
     if (valid_move) {
+      // push move into move stack
+      push_move(valid_move);
+
       // make move on internal board
       make_move(valid_move, all_moves);
       
       // update last square
       last_square = user_target;
-      
-      // TODO push move into move stack
       
       // update board
       update_board();
@@ -1655,7 +1734,7 @@ var Board = function(width, light_square, dark_square, select_color) {
 
   function tests() {
     // parse position from FEN string
-    parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+    set_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
     print_board();
     
     // create move list
@@ -1699,18 +1778,13 @@ var Board = function(width, light_square, dark_square, select_color) {
     \****************************/
     
     // parse FEN to init board position
-    parse_fen: function(fen) { return parse_fen(fen); },
+    set_fen: function(fen) { return set_fen(fen); },
 
-    // generate pseudo legal moves
-    generate_moves: function(move_list) { return generate_moves(move_list); },
+    // undo last move
+    undo_move: function() { undo_move(); },
     
-    
-    
-    // draw board
-    //draw_board: function() { draw_board(); },
-    
-    // update_board
-    //update_board: function() { update_board(); },
+    // redo next move
+    redo_move: function() { redo_move(); },   
     
     // debug
     tests: function() { return tests(); }
@@ -1723,7 +1797,7 @@ var Board = function(width, light_square, dark_square, select_color) {
 var board = new Board();
 //var board = new Board(400, '#eee', '#aaa', '#444');
 //board.tests();
-board.parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+//board.set_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
 
 
 
