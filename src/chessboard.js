@@ -1472,9 +1472,9 @@ var Board = function() {
                          '"bgcolor="' + ( ((col + row) % 2) ? DARK_SQUARE : LIGHT_SQUARE) + 
                          '" width="' + CELL_WIDTH + '" height="' + CELL_HEIGHT + 
                          '" onclick="board.make_move(this.id)" ' + 
-                         'ondragstart="board.drag_piece(this.id)" ' +
+                         'ondragstart="board.drag_piece(event, this.id)" ' +
                          'ondragover="board.drag_over(event)"'+
-                         'ondrop="board.drop_piece(this.id)""' +
+                         'ondrop="board.drop_piece(this.id)"' +
                          '></td>'
       }
       
@@ -1501,19 +1501,23 @@ var Board = function() {
         // make sure square is on board
         if ((square & 0x88) == 0)
           // draw pieces
-          document.getElementById(square).innerHTML = '<img draggable src ="Images/' + (board[square]) +'.gif">';;
+          document.getElementById(square).innerHTML = '<img draggable="true" id="' + board[square] + '" src ="Images/' + (board[square]) +'.gif">';;
       }
     }
   }
   
   // pick piece
-  function drag_piece(square) {
+  function drag_piece(event, square) {
     // init source square
     user_source = square;
+    
+    // "erase" piece on source square
+    event.target.style.opacity = 0.0;
   }
   
   // drag piece
-  function drag_over(event) {
+  function drag_over(event) {    
+    // needed to allow drop
     event.preventDefault();
   }
   
@@ -1558,10 +1562,8 @@ var Board = function() {
         
     // make move on internal board
     let move_str = coordinates[user_source] + 
-                   coordinates[user_target];// + 
-                   //promoted_pieces[promoted_piece];
-    
-    console.log(move_str);
+                   coordinates[user_target] + 
+                   promoted_pieces[promoted_piece];
     
     // move to make
     var valid_move  = is_valid(move_str);
@@ -1651,13 +1653,13 @@ var Board = function() {
     make_move: function(square) { tap_piece(square); },
     
     // pick piece
-    drag_piece: function(square) { drag_piece(square) },
+    drag_piece: function(event, square) { drag_piece(event, square); },
     
     // pick piece
-    drag_over: function(event) { drag_over(event) },
+    drag_over: function(event) { drag_over(event); },
     
     // pick piece
-    drop_piece: function(square) { drop_piece(square) },
+    drop_piece: function(square) { drop_piece(square); },
     
     // draw board
     draw_board: function() { draw_board(); },
@@ -1674,42 +1676,14 @@ var Board = function() {
 
 // create engine instance
 var board = new Board();
-board.tests();
+//board.tests();
 board.parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
 board.draw_board();
 board.update_board();
 
 
-/*
-document.addEventListener("dragstart", function(e) {
-  var img = document.createElement("img");
-  e.dataTransfer.setDragImage(img, 5000, 5000);
-  drag(e)
-}, false);
 
-var drag_image, drag_x, drag_y;
 
-function drag(ev) {
-  drag_image = ev.target.cloneNode(true);
-  drag_image.style.position = "absolute";
-  drag_image.style.opacity = "1.0";
-  document.body.appendChild(drag_image);
-  ev.dataTransfer.setData("text", ev.target.id);
-}
-
-document.addEventListener("dragover", function(ev) {
-  ev = ev || window.event;
-  drag_x = ev.pageX;
-  drag_y = ev.pageY;
-  drag_image.style.left = drag_x + "px";
-  drag_image.style.top = (drag_y - 20) + "px";
-  console.log("X: " + drag_x + " Y: " + drag_y);
-}, false);
-
-document.addEventListener("dragend", function(event) {
-  drag_image.style.display = 'none';
-  drag_image.remove()
-});*/
 
 
 
