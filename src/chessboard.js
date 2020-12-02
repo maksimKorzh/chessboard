@@ -12,7 +12,7 @@
 \************************************************/
 
 // encapsulate engine object
-var Board = function() {
+var Board = function(width, light_square, dark_square, select_color) {
   
   /****************************\
    ============================
@@ -1369,6 +1369,9 @@ var Board = function() {
 
     // init hash key
     hash_key = generate_hash_key();
+    
+    // update board
+    update_board();
   }
 
   // validate move
@@ -1436,20 +1439,34 @@ var Board = function() {
   \****************************/
   
   // board appearence
-  const DARK_SQUARE = '#aaa';
-  const LIGHT_SQUARE = '#eee';
-  const SELECT_COLOR = '#444'
-  const CELL_WIDTH = 40;
-  const CELL_HEIGHT = 40;
+  var LIGHT_SQUARE = '#f0d9b5';
+  var DARK_SQUARE = '#b58863';
+  var SELECT_COLOR = 'brown';
 
+  // board square size
+  var CELL_WIDTH = 50;
+  var CELL_HEIGHT = 50;
+  
+  // override board size
+  if (width) {
+    CELL_WIDTH = width / 8;
+    CELL_HEIGHT = width / 8;
+  }
+  
+  // override board appearence settings
+  if (light_square) LIGHT_SQUARE = light_square;
+  if (dark_square) DARK_SQUARE = dark_square;
+  if (select_color) SELECT_COLOR = select_color;
+  
+  // draw board initially
+  draw_board();
+  update_board();
+  
   // variable to check click-on-piece state
   var click_lock = 0;
 
   // user input variables
-  var user_source, user_target, last_source, last_target;
-  
-  // cell colors backups
-  var source_color, target_color;
+  var user_source, user_target;
 
   function draw_board() {
     // create HTML rable tag
@@ -1501,7 +1518,11 @@ var Board = function() {
         // make sure square is on board
         if ((square & 0x88) == 0)
           // draw pieces
-          document.getElementById(square).innerHTML = '<img draggable="true" id="' + board[square] + '" src ="Images/' + (board[square]) +'.gif">';;
+          document.getElementById(square).innerHTML = '<img style="width: ' + 
+                                                       (width ? width / 8: 400 / 8) + 
+                                                      'px" draggable="true" id="' + 
+                                                       board[square] + '" src ="Images/' + 
+                                                      (board[square]) +'.gif">';
       }
     }
   }
@@ -1518,7 +1539,7 @@ var Board = function() {
   // drag piece
   function drag_over(event) {    
     // needed to allow drop
-    event.preventDefault();
+    event.preventDefault();    
   }
   
   // drop piece
@@ -1528,14 +1549,26 @@ var Board = function() {
 
     // move piece
     move_piece(square);
+    
+    // highlight square
+    if (board[square])
+      document.getElementById(square).style.backgroundColor = SELECT_COLOR;
   }
   
-  function tap_piece(square) {    
+  function tap_piece(square) {
+    // update board
+    draw_board();
+    update_board();
+    
+    // highlight square if piece is on it
+    if (board[square])
+      document.getElementById(square).style.backgroundColor = SELECT_COLOR;
+  
     // convert div ID to square index
     var click_square = parseInt(square, 10)
     
     // if user clicks on source square 
-    if(!click_lock && board[click_square]) {
+    if(!click_lock && board[click_square]) {      
       // init user source square
       user_source = click_square;
       
@@ -1544,12 +1577,9 @@ var Board = function() {
     }
     
     // if user clicks on destination square
-    else if(click_lock) {
+    else if(click_lock) {      
       // init user target square
       user_target = click_square;
-    
-      // unlock click
-      click_lock ^= 1;
       
       // make move on GUI board
       move_piece(square);
@@ -1580,10 +1610,20 @@ var Board = function() {
       
       // update board
       update_board();
-    } else {}
+    }
 
     // update position
+    draw_board();
+    
+    // highlight target square if piece is on it
+    if (board[user_target])
+      document.getElementById(user_target).style.backgroundColor = SELECT_COLOR;
+    
+    // draw pieces
     update_board();
+    
+    // reset click lock
+    click_lock = 0;
   } 
 
 
@@ -1616,7 +1656,6 @@ var Board = function() {
   function tests() {
     // parse position from FEN string
     parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
-    //parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
     print_board();
     
     // create move list
@@ -1636,36 +1675,42 @@ var Board = function() {
     
   }
   
-  /****************************\
-                 
-        PUBLIC API REFERENCE
-                 
-  \****************************/
-
   return {    
+
+    /****************************\
+                 
+             USED BY GUI
+                 
+    \****************************/
+    
+    // make move 
+    make_move: function(square) { tap_piece(square); },
+    
+    // drag-n-drop
+    drag_piece: function(event, square) { drag_piece(event, square); },
+    drag_over: function(event) { drag_over(event); },
+    drop_piece: function(square) { drop_piece(square); },
+    
+    
+    /****************************\
+                 
+             API REFERENCE
+                 
+    \****************************/
+    
     // parse FEN to init board position
     parse_fen: function(fen) { return parse_fen(fen); },
 
     // generate pseudo legal moves
     generate_moves: function(move_list) { return generate_moves(move_list); },
     
-    // make move
-    make_move: function(square) { tap_piece(square); },
     
-    // pick piece
-    drag_piece: function(event, square) { drag_piece(event, square); },
-    
-    // pick piece
-    drag_over: function(event) { drag_over(event); },
-    
-    // pick piece
-    drop_piece: function(square) { drop_piece(square); },
     
     // draw board
-    draw_board: function() { draw_board(); },
+    //draw_board: function() { draw_board(); },
     
     // update_board
-    update_board: function() { update_board(); },
+    //update_board: function() { update_board(); },
     
     // debug
     tests: function() { return tests(); }
@@ -1676,10 +1721,10 @@ var Board = function() {
 
 // create engine instance
 var board = new Board();
+//var board = new Board(400, '#eee', '#aaa', '#444');
 //board.tests();
-board.parse_fen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ');
-board.draw_board();
-board.update_board();
+board.parse_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
+
 
 
 
