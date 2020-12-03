@@ -109,8 +109,7 @@ var Board = function(width, light_square, dark_square, select_color) {
 
   // castling bits
   const KC = 1, QC = 2, kc = 4, qc = 8;
-  
-  
+
   // castling rights
   var castling_rights = [
      7, 15, 15, 15,  3, 15, 15, 11,  o, o, o, o, o, o, o, o,
@@ -235,35 +234,34 @@ var Board = function(width, light_square, dark_square, select_color) {
     var final_key = 0;
     
     // loop over board squares
-	  for(var square = 0; square < 128; square++) {
-		  // make sure square is on board
-		  if ((square & 0x88) == 0)
-		  {
-		    // init piece
-		    var piece = board[square];
-        
+    for(var square = 0; square < 128; square++) {
+	  // make sure square is on board
+	  if ((square & 0x88) == 0)	{
+	    // init piece
+	    var piece = board[square];
+    
         // if piece available
-		    if (piece != e)
-		      // hash piece
-			    final_key ^= piece_keys[(piece * 128) + square];
-		  }		
-	  }
+        if (piece != e)
+	      // hash piece
+          final_key ^= piece_keys[(piece * 128) + square];
+	  }		
+    }
 
     // if white to move
-	  if (side == white)
-		  // hash side 
-		  final_key ^= side_key;
-	  
-	  // if enpassant is available
-	  if (enpassant != no_sq)
-	    // hash enpassant square
-		  final_key ^= piece_keys[enpassant];
-	  
-	  // hash castling rights
-	  final_key ^= castle_keys[castle];
-	  
-	  // return final hash key (unique position ID)
-	  return final_key;
+    if (side == white)
+      // hash side 
+      final_key ^= side_key;
+
+    // if enpassant is available
+    if (enpassant != no_sq)
+      // hash enpassant square
+      final_key ^= piece_keys[enpassant];
+
+    // hash castling rights
+    final_key ^= castle_keys[castle];
+
+    // return final hash key (unique position ID)
+    return final_key;
   }
 
 
@@ -326,13 +324,14 @@ var Board = function(width, light_square, dark_square, select_color) {
   
   // print move
   function print_move(move) {
-      if (get_move_piece(move))
-          return coordinates[get_move_source(move)] +
-                 coordinates[get_move_target(move)] +
-                 promoted_pieces[get_move_piece(move)];
-      else
-          return coordinates[get_move_source(move)] +
-                 coordinates[get_move_target(move)];
+    if (get_move_piece(move))
+      return coordinates[get_move_source(move)] +
+             coordinates[get_move_target(move)] +
+             promoted_pieces[get_move_piece(move)];
+      
+    else
+      return coordinates[get_move_source(move)] +
+             coordinates[get_move_target(move)];
   }
 	
   // print move list
@@ -1767,9 +1766,6 @@ var Board = function(width, light_square, dark_square, select_color) {
       // push move into move stack
       push_move(valid_move);
       
-      // update last square
-      last_square = user_target;
-      
       // update board
       update_board();
     }
@@ -1833,8 +1829,9 @@ var Board = function(width, light_square, dark_square, select_color) {
     print_move_list(move_list);
 
     // perft test
-    perft_test(3);
-    
+    //perft_test(3);
+    console.log(move_stack)
+    print_attacked_squares(side);
   }
   
   return {    
@@ -1878,19 +1875,13 @@ var Board = function(width, light_square, dark_square, select_color) {
     // read moves
     read_moves: function(moves) { read_moves(moves); },
     
+    // print board to console
+    print_board: function() { print_board() },
+    
     // debug
     tests: function() { return tests(); }
   }
 }
-
-/* TEST DRIVER */
-
-// create engine instance
-var board = new Board();
-//var board = new Board(400, '#eee', '#aaa', '#444');
-//board.tests();
-//board.set_fen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 ');
-
 
 
 
