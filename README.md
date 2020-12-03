@@ -13,5 +13,6 @@ A pure javascript chess board widget that knows rules of chess
 # Live demo
 https://maksimkorzh.github.io/chessboard/
 
-# How to use it
+# How to use it (CRASH COURSE)
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/QFY1Mbcueno/0.jpg)](https://www.youtube.com/watch?v=QFY1Mbcueno&feature=youtu.be)
 
