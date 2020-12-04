@@ -468,8 +468,16 @@ var hy1 = 0;
 var hx2 = -1;
 var hy2 = 0;
 
-function image_dragover(event, square) {
-  event.target.src = 'empty.png';
+var source_cell;
+
+function image_dragover(event) {
+  if (source_cell == event.target.parentElement.id)
+    event.target.src = 'empty.png';
+}
+
+function image_dragstart(event) {
+  event.target.style.opacity=1.0;
+  source_cell = event.target.parentElement.id
 }
 
 function Display() {
@@ -496,7 +504,7 @@ function Display() {
       image = "";
     }
     //document.getElementById(cell).style.backgroundImage = image;
-    document.getElementById(cell).innerHTML = '<img ondragover="image_dragover(event, cell)" ondragstart="event.target.style.opacity=1.0;" ' + image.replace('url(', 'src=').replace(')', '>');
+    document.getElementById(cell).innerHTML = '<img ondragover="image_dragover(event)" ondragstart="image_dragstart(event)" ' + image.replace('url(', 'src=').replace(')', '>');
     if(piece == 250) Highlight(j, i, "#000000"); else
     if(j == hx1 && i == hy1 || j == hx2 && i == hy2) Highlight(j, i, "#80FF80"); else Highlight(j, i, 0);
   }
