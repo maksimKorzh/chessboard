@@ -468,6 +468,10 @@ var hy1 = 0;
 var hx2 = -1;
 var hy2 = 0;
 
+function image_dragover(event, square) {
+  event.target.src = 'empty.png';
+}
+
 function Display() {
   var p;
   for(i=0; i<ranks; i++) for(j=0; j<files; j++) {
@@ -492,7 +496,7 @@ function Display() {
       image = "";
     }
     //document.getElementById(cell).style.backgroundImage = image;
-    document.getElementById(cell).innerHTML = '<img ondragover="console.log(event.pageX)" ondragstart="event.target.style.opacity=0.5;" ' + image.replace('url(', 'src=').replace(')', '>');
+    document.getElementById(cell).innerHTML = '<img ondragover="image_dragover(event, cell)" ondragstart="event.target.style.opacity=1.0;" ' + image.replace('url(', 'src=').replace(')', '>');
     if(piece == 250) Highlight(j, i, "#000000"); else
     if(j == hx1 && i == hy1 || j == hx2 && i == hy2) Highlight(j, i, "#80FF80"); else Highlight(j, i, 0);
   }
@@ -510,6 +514,8 @@ function Display() {
   if(realColor != '' && realColor != dark && !touched) { if(light == dark) light = realColor; dark = realColor; touched = -1; }
   oddShade = 0;
 }
+
+
 
 function FlipView() {
   flip = !flip;

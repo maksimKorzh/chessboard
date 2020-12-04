@@ -1687,14 +1687,14 @@ var Board = function(width, light_square, dark_square, select_color) {
   // pick piece
   function drag_piece(event, square) {
     // init source square
-    user_source = square;    
+    user_source = square;
   }
   
   // drag piece
   function drag_over(event, square) {        
     // needed to allow drop
     event.preventDefault();
-    
+
     // erase source image of dragged piece
     if (square == user_source)
       event.target.src = 'Images/0.gif';
