@@ -1647,8 +1647,8 @@ var Board = function(width, light_square, dark_square, select_color) {
                          '" width="' + CELL_WIDTH + '" height="' + CELL_HEIGHT + 
                          '" onclick="board.make_move(this.id)" ' + 
                          'ondragstart="board.drag_piece(event, this.id)" ' +
-                         'ondragover="board.drag_over(event)"'+
-                         'ondrop="board.drop_piece(this.id)"' +
+                         'ondragover="board.drag_over(event, this.id)"'+
+                         'ondrop="board.drop_piece(event, this.id)"' +
                          '></td>'
       }
       
@@ -1687,29 +1687,33 @@ var Board = function(width, light_square, dark_square, select_color) {
   // pick piece
   function drag_piece(event, square) {
     // init source square
-    user_source = square;
-    
-    // "erase" piece on source square
-    event.target.style.opacity = 0.0;
+    user_source = square;    
   }
   
   // drag piece
-  function drag_over(event) {    
+  function drag_over(event, square) {        
     // needed to allow drop
-    event.preventDefault();    
+    event.preventDefault();
+    
+    // erase source image of dragged piece
+    if (square == user_source)
+      event.target.src = 'Images/0.gif';
   }
   
   // drop piece
-  function drop_piece(square) {
+  function drop_piece(event, square) {
     // init target square
     user_target = square;
 
     // move piece
-    move_piece(square);
+    move_piece(square);    
     
     // highlight square
     if (board[square])
       document.getElementById(square).style.backgroundColor = SELECT_COLOR;
+    
+    // do not open image file in the tab
+    event.preventDefault();
   }
   
   function tap_piece(square) {
@@ -1791,7 +1795,8 @@ var Board = function(width, light_square, dark_square, select_color) {
                INIT
 
    ============================              
-  \****************************/  
+  \****************************/
+  
   // init all when Chess() object is created
   (function init_all() {
     // init random keys
@@ -1847,8 +1852,8 @@ var Board = function(width, light_square, dark_square, select_color) {
     
     // drag-n-drop
     drag_piece: function(event, square) { drag_piece(event, square); },
-    drag_over: function(event) { drag_over(event); },
-    drop_piece: function(square) { drop_piece(square); },
+    drag_over: function(event, square) { drag_over(event, square); },
+    drop_piece: function(event, square) { drop_piece(event, square); },
     
     
     /****************************\

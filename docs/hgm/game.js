@@ -492,7 +492,7 @@ function Display() {
       image = "";
     }
     //document.getElementById(cell).style.backgroundImage = image;
-    document.getElementById(cell).innerHTML = '<img ondragstart="event.target.style.opacity=0.0;" ' + image.replace('url(', 'src=').replace(')', '>');
+    document.getElementById(cell).innerHTML = '<img ondragover="console.log(event.pageX)" ondragstart="event.target.style.opacity=0.5;" ' + image.replace('url(', 'src=').replace(')', '>');
     if(piece == 250) Highlight(j, i, "#000000"); else
     if(j == hx1 && i == hy1 || j == hx2 && i == hy2) Highlight(j, i, "#80FF80"); else Highlight(j, i, 0);
   }
