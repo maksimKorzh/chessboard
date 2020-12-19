@@ -1,6 +1,7 @@
 # This project has been supercede by a new project
 This project is no longer maintained, see Wukong JS instead -<br>
-a javascript port of Wukong chess engine with UCI support + library like API: https://github.com/maksimKorzh/wukongJS
+a javascript port of Wukong chess engine with UCI support + library like API:<br>
+https://github.com/maksimKorzh/wukongJS
 
 # Experimental javascript chess board
 A pure javascript chess board widget that knows rules of chess
